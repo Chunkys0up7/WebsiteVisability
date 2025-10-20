@@ -9,6 +9,9 @@ from .scoring_engine import ScoringEngine
 from .crawler_analyzer import CrawlerAnalyzer
 from .llm_accessibility_analyzer import LLMAccessibilityAnalyzer
 from .separate_analyzer import SeparateAnalyzer
+from .ssr_detector import SSRDetector
+from .web_crawler_analyzer import WebCrawlerAnalyzer
+from .evidence_capture import EvidenceCapture
 
 __all__ = [
     "StaticAnalyzer",
@@ -18,5 +21,8 @@ __all__ = [
     "CrawlerAnalyzer",
     "LLMAccessibilityAnalyzer",
     "SeparateAnalyzer",
+    "SSRDetector",
+    "WebCrawlerAnalyzer",
+    "EvidenceCapture",
 ]
 

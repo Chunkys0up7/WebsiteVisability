@@ -11,6 +11,9 @@ from datetime import datetime
 from src.analyzers import StaticAnalyzer, DynamicAnalyzer, ContentComparator, ScoringEngine
 from src.analyzers.llm_accessibility_analyzer import LLMAccessibilityAnalyzer
 from src.analyzers.separate_analyzer import SeparateAnalyzer
+from src.analyzers.ssr_detector import SSRDetector
+from src.analyzers.web_crawler_analyzer import WebCrawlerAnalyzer
+from src.analyzers.evidence_capture import EvidenceCapture
 from src.utils.validators import URLValidator
 from src.models.analysis_result import AnalysisResult
 from src.models.scoring_models import Score
@@ -96,6 +99,41 @@ def initialize_session_state():
         st.session_state.llm_report = None
     if 'separate_analyzer' not in st.session_state:
         st.session_state.separate_analyzer = None
+    if 'ssr_detection' not in st.session_state:
+        st.session_state.ssr_detection = None
+    if 'crawler_analysis' not in st.session_state:
+        st.session_state.crawler_analysis = {}
+    if 'evidence_report' not in st.session_state:
+        st.session_state.evidence_report = None
+
+def _get_grade(score: float) -> str:
+    """Calculate letter grade from score"""
+    if score >= 97:
+        return "A+"
+    elif score >= 93:
+        return "A"
+    elif score >= 90:
+        return "A-"
+    elif score >= 87:
+        return "B+"
+    elif score >= 83:
+        return "B"
+    elif score >= 80:
+        return "B-"
+    elif score >= 77:
+        return "C+"
+    elif score >= 73:
+        return "C"
+    elif score >= 70:
+        return "C-"
+    elif score >= 67:
+        return "D+"
+    elif score >= 63:
+        return "D"
+    elif score >= 60:
+        return "D-"
+    else:
+        return "F"
 
 def get_score_color_class(score: float) -> str:
     """Get CSS class based on score"""
@@ -108,7 +146,8 @@ def get_score_color_class(score: float) -> str:
     else:
         return "score-poor"
 
-def perform_analysis(url: str, analyze_dynamic: bool = True):
+def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str = "Comprehensive Analysis", 
+                    crawler_types: list = None, capture_evidence: bool = True):
     """Perform complete website analysis"""
     try:
         # Static Analysis
@@ -151,12 +190,49 @@ def perform_analysis(url: str, analyze_dynamic: bool = True):
                 st.session_state.comparison = comparison
                 logger.info(f"Content comparison completed for {url}")
         
-        # LLM Accessibility Analysis
-        with st.spinner("🤖 Analyzing LLM accessibility..."):
-            llm_analyzer = LLMAccessibilityAnalyzer()
-            llm_report = llm_analyzer.analyze(static_result)
-            st.session_state.llm_report = llm_report
-            logger.info(f"LLM accessibility analysis completed for {url}")
+               # LLM Accessibility Analysis
+               with st.spinner("🤖 Analyzing LLM accessibility..."):
+                   llm_analyzer = LLMAccessibilityAnalyzer()
+                   llm_report = llm_analyzer.analyze(static_result)
+                   st.session_state.llm_report = llm_report
+                   logger.info(f"LLM accessibility analysis completed for {url}")
+               
+               # SSR Detection
+               if analysis_type in ["Comprehensive Analysis", "SSR Detection Only"]:
+                   with st.spinner("🔍 Detecting SSR patterns..."):
+                       ssr_detector = SSRDetector()
+                       ssr_detection = ssr_detector.detect_ssr(static_result.content_analysis.text_content if static_result.content_analysis else "", 
+                                                               static_result.javascript_analysis)
+                       st.session_state.ssr_detection = ssr_detection
+                       logger.info(f"SSR detection completed for {url}")
+               
+               # Web Crawler Testing
+               if analysis_type in ["Comprehensive Analysis", "Web Crawler Testing"]:
+                   if crawler_types is None:
+                       crawler_types = ["llm", "googlebot"]
+                   
+                   crawler_analyzer = WebCrawlerAnalyzer()
+                   crawler_results = {}
+                   
+                   for crawler_type in crawler_types:
+                       with st.spinner(f"🕷️ Testing {crawler_type} accessibility..."):
+                           try:
+                               crawler_result = crawler_analyzer.analyze_crawler_accessibility(url, crawler_type, static_result)
+                               crawler_results[crawler_type] = crawler_result
+                               logger.info(f"{crawler_type} analysis completed for {url}")
+                           except Exception as e:
+                               st.warning(f"Failed to analyze {crawler_type}: {str(e)}")
+                               logger.error(f"Crawler analysis error for {crawler_type} on {url}: {e}")
+                   
+                   st.session_state.crawler_analysis = crawler_results
+               
+               # Evidence Capture
+               if capture_evidence and st.session_state.crawler_analysis:
+                   with st.spinner("📊 Capturing evidence and generating reports..."):
+                       evidence_capture = EvidenceCapture()
+                       evidence_report = evidence_capture.create_evidence_report(url, st.session_state.crawler_analysis)
+                       st.session_state.evidence_report = evidence_report
+                       logger.info(f"Evidence report generated for {url}")
         
         # Scoring
         with st.spinner("⚡ Calculating scores and generating recommendations..."):
@@ -200,6 +276,30 @@ def main():
             value=False,
             disabled=True,
             help="Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Static analysis provides comprehensive LLM accessibility insights."
+        )
+        
+        st.markdown("---")
+        
+        st.subheader("🔍 Analysis Options")
+        
+        analysis_type = st.selectbox(
+            "Analysis Focus",
+            ["Comprehensive Analysis", "LLM Accessibility Only", "Web Crawler Testing", "SSR Detection Only"],
+            help="Choose the type of analysis to perform"
+        )
+        
+        if analysis_type == "Web Crawler Testing":
+            crawler_types = st.multiselect(
+                "Select Crawlers to Test",
+                ["googlebot", "bingbot", "llm", "basic_scraper", "social_crawler"],
+                default=["llm", "googlebot"],
+                help="Choose which crawler types to test"
+            )
+        
+        capture_evidence = st.checkbox(
+            "Capture Evidence",
+            value=True,
+            help="Capture detailed evidence and generate reports"
         )
         
         analyze_button = st.button("🚀 Analyze Website", type="primary", use_container_width=True)
@@ -250,7 +350,9 @@ def main():
             else:
                 url_input = normalized_url
                 st.session_state.analysis_complete = False
-                success = perform_analysis(url_input, analyze_dynamic)
+                success = perform_analysis(url_input, analyze_dynamic, analysis_type, 
+                                         crawler_types if analysis_type == "Web Crawler Testing" else None, 
+                                         capture_evidence)
                 
                 if success:
                     st.success("✅ Analysis complete!")
@@ -310,6 +412,9 @@ def main():
             "📊 Overview",
             "🤖 LLM Analysis", 
             "🕷️ Scraper Analysis",
+            "🔍 SSR Detection",
+            "🕷️ Crawler Testing",
+            "📊 Evidence Report",
             "📝 Content",
             "🏗️ Structure",
             "🏷️ Meta Data",
@@ -602,7 +707,223 @@ def main():
             else:
                 st.warning("Scraper analysis not available. Please run the analysis first.")
         
-        with tabs[3]:  # Content
+        with tabs[3]:  # SSR Detection
+            st.header("🔍 Server-Side Rendering (SSR) Detection")
+            
+            if st.session_state.ssr_detection:
+                ssr = st.session_state.ssr_detection
+                
+                # SSR Status
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    if ssr.is_ssr:
+                        st.success("✅ SSR Detected")
+                    else:
+                        st.warning("⚠️ No SSR Detected")
+                
+                with col2:
+                    st.metric("Rendering Type", ssr.rendering_type.title())
+                
+                with col3:
+                    st.metric("Confidence", f"{ssr.confidence:.1%}")
+                
+                st.markdown("---")
+                
+                # Framework Detection
+                if ssr.framework_indicators:
+                    st.subheader("🎯 Framework Indicators")
+                    for indicator in ssr.framework_indicators:
+                        st.markdown(f"- {indicator}")
+                else:
+                    st.info("No specific framework indicators detected")
+                
+                # Evidence
+                if ssr.evidence:
+                    st.subheader("🔍 Detection Evidence")
+                    for evidence in ssr.evidence:
+                        st.markdown(f"- {evidence}")
+                
+                # Performance Indicators
+                if ssr.performance_indicators:
+                    st.subheader("⚡ Performance Indicators")
+                    perf = ssr.performance_indicators
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Critical CSS", "✅" if perf.get('has_critical_css') else "❌")
+                    with col2:
+                        st.metric("Preload Links", "✅" if perf.get('has_preload_links') else "❌")
+                    with col3:
+                        st.metric("Resource Hints", "✅" if perf.get('has_resource_hints') else "❌")
+                    with col4:
+                        st.metric("Initial Content", f"{perf.get('estimated_initial_content', 0):,} chars")
+                
+                # Recommendations
+                st.subheader("💡 SSR Recommendations")
+                if ssr.is_ssr:
+                    st.success("🎉 Your website uses SSR! This is excellent for LLM accessibility.")
+                    st.info("""
+                    **Benefits of SSR:**
+                    - Content is immediately available to LLMs
+                    - Better SEO performance
+                    - Faster initial page load
+                    - Improved accessibility
+                    """)
+                else:
+                    st.warning("⚠️ Your website may not be using SSR effectively.")
+                    st.info("""
+                    **Consider implementing SSR for:**
+                    - Better LLM accessibility
+                    - Improved SEO
+                    - Faster initial content delivery
+                    - Enhanced user experience
+                    """)
+            else:
+                st.warning("SSR detection not available. Please run the analysis first.")
+        
+        with tabs[4]:  # Crawler Testing
+            st.header("🕷️ Web Crawler Testing")
+            
+            if st.session_state.crawler_analysis:
+                crawler_results = st.session_state.crawler_analysis
+                
+                # Summary metrics
+                st.subheader("📊 Crawler Accessibility Summary")
+                
+                cols = st.columns(len(crawler_results))
+                for i, (crawler_type, result) in enumerate(crawler_results.items()):
+                    with cols[i]:
+                        score_class = get_score_color_class(result.accessibility_score)
+                        st.metric(
+                            result.crawler_name,
+                            f"{result.accessibility_score:.1f}/100",
+                            delta=f"Grade: {_get_grade(result.accessibility_score)}"
+                        )
+                
+                st.markdown("---")
+                
+                # Detailed analysis for each crawler
+                for crawler_type, result in crawler_results.items():
+                    with st.expander(f"🔍 {result.crawler_name} Analysis"):
+                        
+                        # Accessibility Score
+                        st.markdown(f"**Accessibility Score:** {result.accessibility_score:.1f}/100")
+                        st.progress(result.accessibility_score / 100)
+                        
+                        # Accessible Content
+                        if result.content_accessible:
+                            st.markdown("**✅ Accessible Content:**")
+                            for content_type, details in result.content_accessible.items():
+                                if isinstance(details, dict) and details.get('available'):
+                                    st.markdown(f"- {content_type}: {details.get('explanation', '')}")
+                        
+                        # Inaccessible Content
+                        if result.content_inaccessible:
+                            st.markdown("**❌ Inaccessible Content:**")
+                            for content_type, details in result.content_inaccessible.items():
+                                if isinstance(details, dict) and not details.get('available', True):
+                                    impact = details.get('impact', 'Unknown')
+                                    explanation = details.get('explanation', '')
+                                    st.markdown(f"- {content_type}: {explanation} ({impact})")
+                        
+                        # Evidence
+                        if result.evidence:
+                            st.markdown("**🔍 Evidence:**")
+                            for evidence in result.evidence:
+                                st.markdown(f"- {evidence}")
+                        
+                        # Recommendations
+                        if result.recommendations:
+                            st.markdown("**💡 Recommendations:**")
+                            for rec in result.recommendations:
+                                if 'CRITICAL' in rec:
+                                    st.error(rec)
+                                elif 'HIGH' in rec:
+                                    st.warning(rec)
+                                else:
+                                    st.info(rec)
+            else:
+                st.warning("Crawler testing not available. Please run 'Web Crawler Testing' analysis first.")
+        
+        with tabs[5]:  # Evidence Report
+            st.header("📊 Evidence Report")
+            
+            if st.session_state.evidence_report:
+                report = st.session_state.evidence_report
+                
+                # Report Header
+                st.subheader("📋 Report Summary")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Analysis ID", report.analysis_id)
+                with col2:
+                    st.metric("Crawlers Tested", report.summary['total_crawlers'])
+                with col3:
+                    st.metric("Total Issues", report.summary['total_issues'])
+                
+                # Issue Breakdown
+                st.subheader("📊 Issue Breakdown")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Critical", report.summary['critical_issues'], delta="🔴")
+                with col2:
+                    st.metric("High", report.summary['high_issues'], delta="🟠")
+                with col3:
+                    st.metric("Medium", report.summary['medium_issues'], delta="🟡")
+                with col4:
+                    st.metric("Low", report.summary['low_issues'], delta="🟢")
+                
+                # Export Options
+                st.subheader("📤 Export Report")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    if st.button("📄 Export JSON"):
+                        evidence_capture = EvidenceCapture()
+                        json_report = evidence_capture.export_evidence_report(report.analysis_id, 'json')
+                        st.download_button(
+                            label="Download JSON",
+                            data=json_report,
+                            file_name=f"evidence_report_{report.analysis_id}.json",
+                            mime="application/json"
+                        )
+                
+                with col2:
+                    if st.button("📄 Export HTML"):
+                        evidence_capture = EvidenceCapture()
+                        html_report = evidence_capture.export_evidence_report(report.analysis_id, 'html')
+                        st.download_button(
+                            label="Download HTML",
+                            data=html_report,
+                            file_name=f"evidence_report_{report.analysis_id}.html",
+                            mime="text/html"
+                        )
+                
+                with col3:
+                    if st.button("📄 Export Markdown"):
+                        evidence_capture = EvidenceCapture()
+                        md_report = evidence_capture.export_evidence_report(report.analysis_id, 'markdown')
+                        st.download_button(
+                            label="Download Markdown",
+                            data=md_report,
+                            file_name=f"evidence_report_{report.analysis_id}.md",
+                            mime="text/markdown"
+                        )
+                
+                # Comprehensive Recommendations
+                if report.recommendations:
+                    st.subheader("💡 Comprehensive Recommendations")
+                    for rec in report.recommendations:
+                        if 'CRITICAL' in rec:
+                            st.error(rec)
+                        elif 'HIGH' in rec:
+                            st.warning(rec)
+                        else:
+                            st.info(rec)
+            else:
+                st.warning("Evidence report not available. Please run analysis with 'Capture Evidence' enabled.")
+        
+        with tabs[6]:  # Content
             st.header("Content Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.content_analysis:
@@ -632,7 +953,7 @@ def main():
                         height=300
                     )
         
-        with tabs[4]:  # Structure
+        with tabs[7]:  # Structure
             st.header("HTML Structure Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.structure_analysis:
@@ -670,7 +991,7 @@ def main():
                     else:
                         st.warning("No semantic HTML5 elements detected")
         
-        with tabs[5]:  # Meta Data
+        with tabs[8]:  # Meta Data
             st.header("Meta Data & Structured Data")
             
             if st.session_state.static_result and st.session_state.static_result.meta_analysis:
@@ -709,7 +1030,7 @@ def main():
                             for i, data in enumerate(meta.structured_data[:5], 1):
                                 st.json(data.data)
         
-        with tabs[6]:  # JavaScript
+        with tabs[9]:  # JavaScript
             st.header("JavaScript Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.javascript_analysis:
@@ -749,7 +1070,7 @@ def main():
                             for item in comp.missing_in_static[:10]:
                                 st.markdown(f"- {item}")
         
-        with tabs[7]:  # Recommendations
+        with tabs[10]:  # Recommendations
             st.header("💡 Optimization Recommendations")
             
             if score.recommendations:
