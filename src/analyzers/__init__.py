@@ -8,6 +8,7 @@ from .content_comparator import ContentComparator
 from .scoring_engine import ScoringEngine
 from .crawler_analyzer import CrawlerAnalyzer
 from .llm_accessibility_analyzer import LLMAccessibilityAnalyzer
+from .separate_analyzer import SeparateAnalyzer
 
 __all__ = [
     "StaticAnalyzer",
@@ -16,5 +17,6 @@ __all__ = [
     "ScoringEngine",
     "CrawlerAnalyzer",
     "LLMAccessibilityAnalyzer",
+    "SeparateAnalyzer",
 ]
 

@@ -10,6 +10,7 @@ from datetime import datetime
 
 from src.analyzers import StaticAnalyzer, DynamicAnalyzer, ContentComparator, ScoringEngine
 from src.analyzers.llm_accessibility_analyzer import LLMAccessibilityAnalyzer
+from src.analyzers.separate_analyzer import SeparateAnalyzer
 from src.utils.validators import URLValidator
 from src.models.analysis_result import AnalysisResult
 from src.models.scoring_models import Score
@@ -93,6 +94,8 @@ def initialize_session_state():
         st.session_state.analyzed_url = None
     if 'llm_report' not in st.session_state:
         st.session_state.llm_report = None
+    if 'separate_analyzer' not in st.session_state:
+        st.session_state.separate_analyzer = None
 
 def get_score_color_class(score: float) -> str:
     """Get CSS class based on score"""
@@ -305,7 +308,8 @@ def main():
         # Detailed Results in Tabs
         tabs = st.tabs([
             "📊 Overview",
-            "🤖 LLM Analysis",
+            "🤖 LLM Analysis", 
+            "🕷️ Scraper Analysis",
             "📝 Content",
             "🏗️ Structure",
             "🏷️ Meta Data",
@@ -426,10 +430,29 @@ def main():
                     js_content = inaccessible['javascript_dependent_content']
                     if js_content['dynamic_content']:
                         st.error("🚨 Dynamic content detected - LLMs cannot execute JavaScript")
+                        st.markdown(f"**Scripts detected:** {js_content['total_scripts']}")
+                        if js_content["frameworks_detected"]:
+                            st.markdown(f"**Frameworks:** {', '.join(js_content['frameworks_detected'])}")
                     if js_content['ajax_content']:
                         st.error("🚨 AJAX content detected - Not accessible to LLMs")
                     if js_content['spa_content']:
                         st.error("🚨 Single Page Application detected - Requires JavaScript")
+                    
+                    # Show technical details
+                    if js_content['dynamic_content']:
+                        with st.expander("🔬 Technical Details & Citations"):
+                            tech_details = js_content['technical_details']
+                            st.markdown(f"**Why LLMs can't execute JavaScript:** {tech_details['why_llms_cant_execute_js']}")
+                            st.markdown(f"**Impact on content:** {tech_details['impact_on_content']}")
+                            
+                            st.markdown("**Examples of inaccessible content:**")
+                            for example in tech_details['examples']:
+                                st.markdown(f"- {example}")
+                            
+                            st.markdown("**Citations:**")
+                            for citation in tech_details['citations']:
+                                st.markdown(f"- {citation}")
+                    
                     st.markdown(f"*{js_content['explanation']}*")
                     
                     st.markdown("**👁️ CSS-Hidden Content**")
@@ -509,7 +532,77 @@ def main():
             else:
                 st.warning("LLM analysis not available. Please run the analysis first.")
         
-        with tabs[2]:  # Content
+        with tabs[2]:  # Scraper Analysis
+            st.header("🕷️ Scraper Analysis")
+            
+            if st.session_state.score:
+                score = st.session_state.score
+                
+                # Scraper-specific metrics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Scraper Friendliness", f"{score.scraper_friendliness.total_score:.1f}/100", 
+                             delta=f"Grade: {score.scraper_friendliness.grade}")
+                with col2:
+                    st.metric("Static Content Quality", f"{score.scraper_friendliness.static_content_quality.score:.1f}/25")
+                with col3:
+                    st.metric("Semantic HTML", f"{score.scraper_friendliness.semantic_html_structure.score:.1f}/20")
+                
+                st.markdown("---")
+                
+                # Scraper-specific breakdown
+                st.subheader("🎯 Scraper Friendliness Breakdown")
+                
+                scraper_components = [
+                    score.scraper_friendliness.static_content_quality,
+                    score.scraper_friendliness.semantic_html_structure,
+                    score.scraper_friendliness.structured_data_implementation,
+                    score.scraper_friendliness.meta_tag_completeness,
+                    score.scraper_friendliness.javascript_dependency,
+                    score.scraper_friendliness.crawler_accessibility
+                ]
+                
+                for comp in scraper_components:
+                    score_class = get_score_color_class(comp.percentage)
+                    st.markdown(f"**{comp.name}**: {comp.score:.1f}/{comp.max_score:.0f} ({comp.percentage:.0f}%)")
+                    st.progress(comp.percentage / 100)
+                    
+                    if comp.strengths:
+                        with st.expander("✅ Strengths"):
+                            for strength in comp.strengths:
+                                st.markdown(f"- {strength}")
+                    
+                    if comp.issues:
+                        with st.expander("⚠️ Issues"):
+                            for issue in comp.issues:
+                                st.markdown(f"- {issue}")
+                    
+                    st.markdown("---")
+                
+                # Scraper-specific recommendations
+                st.subheader("💡 Scraper Optimization Recommendations")
+                
+                scraper_recommendations = [r for r in score.recommendations 
+                                         if r.category in ["static_content", "semantic_html", "structured_data", "meta_tags", "crawler_accessibility"]]
+                
+                if scraper_recommendations:
+                    for rec in scraper_recommendations:
+                        if rec.priority.value == "critical":
+                            st.error(f"**{rec.priority.value.upper()}**: {rec.description}")
+                        elif rec.priority.value == "high":
+                            st.warning(f"**{rec.priority.value.upper()}**: {rec.description}")
+                        else:
+                            st.info(f"**{rec.priority.value.upper()}**: {rec.description}")
+                        
+                        if rec.code_example:
+                            with st.expander("💻 Code Example"):
+                                st.code(rec.code_example, language="html")
+                else:
+                    st.success("🎉 No scraper-specific recommendations needed!")
+            else:
+                st.warning("Scraper analysis not available. Please run the analysis first.")
+        
+        with tabs[3]:  # Content
             st.header("Content Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.content_analysis:
@@ -539,7 +632,7 @@ def main():
                         height=300
                     )
         
-        with tabs[3]:  # Structure
+        with tabs[4]:  # Structure
             st.header("HTML Structure Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.structure_analysis:
@@ -577,7 +670,7 @@ def main():
                     else:
                         st.warning("No semantic HTML5 elements detected")
         
-        with tabs[4]:  # Meta Data
+        with tabs[5]:  # Meta Data
             st.header("Meta Data & Structured Data")
             
             if st.session_state.static_result and st.session_state.static_result.meta_analysis:
@@ -616,7 +709,7 @@ def main():
                             for i, data in enumerate(meta.structured_data[:5], 1):
                                 st.json(data.data)
         
-        with tabs[5]:  # JavaScript
+        with tabs[6]:  # JavaScript
             st.header("JavaScript Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.javascript_analysis:
@@ -656,7 +749,7 @@ def main():
                             for item in comp.missing_in_static[:10]:
                                 st.markdown(f"- {item}")
         
-        with tabs[6]:  # Recommendations
+        with tabs[7]:  # Recommendations
             st.header("💡 Optimization Recommendations")
             
             if score.recommendations:
