@@ -8,10 +8,20 @@ Simulates what modern browsers and sophisticated crawlers can access.
 import logging
 import time
 import asyncio
+import platform
 from typing import Optional
 from datetime import datetime
 
-from playwright.async_api import async_playwright, Browser, Page, Error as PlaywrightError
+# Check if we're on Windows Store Python and handle Playwright accordingly
+try:
+    from playwright.async_api import async_playwright, Browser, Page, Error as PlaywrightError
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+    async_playwright = None
+    Browser = None
+    Page = None
+    PlaywrightError = Exception
 
 from ..parsers.html_parser import HTMLParser
 from ..parsers.meta_parser import MetaParser
@@ -54,20 +64,45 @@ class DynamicAnalyzer:
         
         self._browser: Optional[Browser] = None
         self._playwright = None
+        
+        # Check for Windows Store Python compatibility
+        self._is_windows_store_python = self._check_windows_store_python()
+        if self._is_windows_store_python:
+            logger.warning("Windows Store Python detected. Dynamic analysis may not work due to asyncio limitations.")
+    
+    def _check_windows_store_python(self) -> bool:
+        """Check if running on Windows Store Python with asyncio limitations."""
+        if platform.system() != "Windows":
+            return False
+        
+        # Check for Windows Store Python path patterns
+        import sys
+        python_path = sys.executable.lower()
+        return "windowsapps" in python_path or "microsoft" in python_path
     
     async def _init_browser(self):
         """Initialize Playwright browser."""
+        if not PLAYWRIGHT_AVAILABLE:
+            raise RuntimeError("Playwright is not available. Please install it with: pip install playwright && playwright install")
+        
+        if self._is_windows_store_python:
+            raise NotImplementedError("Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Please use regular Python installation.")
+        
         if self._browser is None:
             logger.info("Initializing Playwright browser...")
-            self._playwright = await async_playwright().start()
-            self._browser = await self._playwright.chromium.launch(
-                headless=self.headless,
-                args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-dev-shm-usage',
-                    '--no-sandbox'
-                ]
-            )
+            try:
+                self._playwright = await async_playwright().start()
+                self._browser = await self._playwright.chromium.launch(
+                    headless=self.headless,
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox'
+                    ]
+                )
+            except NotImplementedError as e:
+                logger.error(f"Playwright initialization failed due to Windows Store Python: {e}")
+                raise NotImplementedError("Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Please use regular Python installation.")
             logger.info("Browser initialized successfully")
     
     async def _close_browser(self):

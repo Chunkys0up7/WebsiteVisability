@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 
 from src.analyzers import StaticAnalyzer, DynamicAnalyzer, ContentComparator, ScoringEngine
+from src.analyzers.llm_accessibility_analyzer import LLMAccessibilityAnalyzer
 from src.utils.validators import URLValidator
 from src.models.analysis_result import AnalysisResult
 from src.models.scoring_models import Score
@@ -90,6 +91,8 @@ def initialize_session_state():
         st.session_state.score = None
     if 'analyzed_url' not in st.session_state:
         st.session_state.analyzed_url = None
+    if 'llm_report' not in st.session_state:
+        st.session_state.llm_report = None
 
 def get_score_color_class(score: float) -> str:
     """Get CSS class based on score"""
@@ -145,6 +148,13 @@ def perform_analysis(url: str, analyze_dynamic: bool = True):
                 st.session_state.comparison = comparison
                 logger.info(f"Content comparison completed for {url}")
         
+        # LLM Accessibility Analysis
+        with st.spinner("🤖 Analyzing LLM accessibility..."):
+            llm_analyzer = LLMAccessibilityAnalyzer()
+            llm_report = llm_analyzer.analyze(static_result)
+            st.session_state.llm_report = llm_report
+            logger.info(f"LLM accessibility analysis completed for {url}")
+        
         # Scoring
         with st.spinner("⚡ Calculating scores and generating recommendations..."):
             scoring_engine = ScoringEngine()
@@ -183,9 +193,10 @@ def main():
         )
         
         analyze_dynamic = st.checkbox(
-            "Include dynamic analysis",
-            value=True,
-            help="Render page with headless browser to detect JavaScript-loaded content (slower)"
+            "Include dynamic analysis (⚠️ Disabled on Windows Store Python)",
+            value=False,
+            disabled=True,
+            help="Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Static analysis provides comprehensive LLM accessibility insights."
         )
         
         analyze_button = st.button("🚀 Analyze Website", type="primary", use_container_width=True)
@@ -294,6 +305,7 @@ def main():
         # Detailed Results in Tabs
         tabs = st.tabs([
             "📊 Overview",
+            "🤖 LLM Analysis",
             "📝 Content",
             "🏗️ Structure",
             "🏷️ Meta Data",
@@ -354,7 +366,150 @@ def main():
                     st.markdown(f"**{comp.name}**: {comp.score:.1f}/{comp.max_score:.0f} ({comp.percentage:.0f}%)")
                     st.progress(comp.percentage / 100)
         
-        with tabs[1]:  # Content
+        with tabs[1]:  # LLM Analysis
+            st.header("🤖 LLM Accessibility Analysis")
+            
+            if st.session_state.llm_report:
+                llm_report = st.session_state.llm_report
+                
+                # Overall Score
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("LLM Accessibility Score", f"{llm_report.overall_score:.1f}/100", 
+                             delta=f"Grade: {llm_report.grade}")
+                with col2:
+                    st.metric("Accessible Content", f"{len(llm_report.accessible_content)} categories")
+                with col3:
+                    st.metric("Limitations Found", f"{len(llm_report.limitations)} issues")
+                
+                st.markdown("---")
+                
+                # What LLMs CAN Access
+                st.subheader("✅ What LLMs CAN Access")
+                
+                accessible = llm_report.accessible_content
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**📝 Text Content**")
+                    st.info(f"**{accessible['text_content']['character_count']:,} characters** ({accessible['text_content']['word_count']:,} words)")
+                    st.markdown(f"*{accessible['text_content']['explanation']}*")
+                    
+                    st.markdown("**🏗️ Semantic Structure**")
+                    st.info(f"**{len(accessible['semantic_structure']['semantic_elements'])} semantic elements** detected")
+                    st.markdown(f"*{accessible['semantic_structure']['explanation']}*")
+                
+                with col2:
+                    st.markdown("**🏷️ Meta Information**")
+                    meta_info = accessible['meta_information']
+                    st.info(f"Title: {'✅' if meta_info['title'] else '❌'} | Description: {'✅' if meta_info['description'] else '❌'}")
+                    st.markdown(f"*{meta_info['explanation']}*")
+                    
+                    st.markdown("**📊 Structured Data**")
+                    struct_data = accessible['structured_data']
+                    total_items = len(struct_data['json_ld']) + len(struct_data['microdata']) + len(struct_data['rdfa'])
+                    st.info(f"**{total_items} structured data items** found")
+                    st.markdown(f"*{struct_data['explanation']}*")
+                
+                st.markdown("---")
+                
+                # What LLMs CANNOT Access
+                st.subheader("❌ What LLMs CANNOT Access")
+                
+                inaccessible = llm_report.inaccessible_content
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**⚡ JavaScript-Dependent Content**")
+                    js_content = inaccessible['javascript_dependent_content']
+                    if js_content['dynamic_content']:
+                        st.error("🚨 Dynamic content detected - LLMs cannot execute JavaScript")
+                    if js_content['ajax_content']:
+                        st.error("🚨 AJAX content detected - Not accessible to LLMs")
+                    if js_content['spa_content']:
+                        st.error("🚨 Single Page Application detected - Requires JavaScript")
+                    st.markdown(f"*{js_content['explanation']}*")
+                    
+                    st.markdown("**👁️ CSS-Hidden Content**")
+                    hidden_content = inaccessible['css_hidden_content']
+                    if hidden_content['hidden_elements']:
+                        st.warning(f"⚠️ {len(hidden_content['hidden_elements'])} elements hidden from LLMs")
+                    st.markdown(f"*{hidden_content['explanation']}*")
+                
+                with col2:
+                    st.markdown("**🎮 Interactive Elements**")
+                    interactive = inaccessible['interactive_elements']
+                    st.info(f"Forms: {interactive['forms']} | Buttons: {interactive['buttons']}")
+                    st.markdown(f"*{interactive['explanation']}*")
+                    
+                    st.markdown("**📱 Media Content**")
+                    media = inaccessible['media_content']
+                    st.info(f"Images: {media['images']} | Videos: {media['videos']} | Audio: {media['audio']}")
+                    st.markdown(f"*{media['explanation']}*")
+                
+                st.markdown("---")
+                
+                # Specific Limitations
+                st.subheader("⚠️ Specific Limitations Identified")
+                
+                if llm_report.limitations:
+                    for i, limitation in enumerate(llm_report.limitations, 1):
+                        st.markdown(f"**{i}.** {limitation}")
+                else:
+                    st.success("🎉 No major limitations identified!")
+                
+                st.markdown("---")
+                
+                # Recommendations
+                st.subheader("💡 Recommendations for Better LLM Access")
+                
+                if llm_report.recommendations:
+                    for i, rec in enumerate(llm_report.recommendations, 1):
+                        if rec.startswith("CRITICAL"):
+                            st.error(f"**{i}.** {rec}")
+                        elif rec.startswith("HIGH"):
+                            st.warning(f"**{i}.** {rec}")
+                        else:
+                            st.info(f"**{i}.** {rec}")
+                else:
+                    st.success("🎉 No recommendations needed - your site is LLM-friendly!")
+                
+                st.markdown("---")
+                
+                # Technical Analysis
+                st.subheader("🔬 Technical Analysis")
+                
+                tech = llm_report.technical_analysis
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**📊 Content Metrics**")
+                    content_metrics = tech['content_metrics']
+                    st.metric("Readability Score", f"{content_metrics['readability_score']:.1f}/100")
+                    st.metric("Total Paragraphs", content_metrics['paragraphs'])
+                    
+                    st.markdown("**🏗️ Structure Metrics**")
+                    structure_metrics = tech['structure_metrics']
+                    st.metric("Accessibility Score", f"{structure_metrics['accessibility_score']:.1f}/100")
+                    st.metric("DOM Depth", structure_metrics['dom_depth'])
+                
+                with col2:
+                    st.markdown("**⚡ JavaScript Metrics**")
+                    js_metrics = tech['javascript_metrics']
+                    st.metric("Complexity Score", f"{js_metrics['complexity_score']:.1f}/100")
+                    st.metric("Script Count", js_metrics['script_count'])
+                    
+                    st.markdown("**🏷️ Meta Completeness**")
+                    meta_completeness = tech['meta_completeness']
+                    st.metric("Title Present", "✅" if meta_completeness['title_present'] else "❌")
+                    st.metric("Description Present", "✅" if meta_completeness['description_present'] else "❌")
+            else:
+                st.warning("LLM analysis not available. Please run the analysis first.")
+        
+        with tabs[2]:  # Content
             st.header("Content Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.content_analysis:
@@ -384,7 +539,7 @@ def main():
                         height=300
                     )
         
-        with tabs[2]:  # Structure
+        with tabs[3]:  # Structure
             st.header("HTML Structure Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.structure_analysis:
@@ -422,7 +577,7 @@ def main():
                     else:
                         st.warning("No semantic HTML5 elements detected")
         
-        with tabs[3]:  # Meta Data
+        with tabs[4]:  # Meta Data
             st.header("Meta Data & Structured Data")
             
             if st.session_state.static_result and st.session_state.static_result.meta_analysis:
@@ -461,7 +616,7 @@ def main():
                             for i, data in enumerate(meta.structured_data[:5], 1):
                                 st.json(data.data)
         
-        with tabs[4]:  # JavaScript
+        with tabs[5]:  # JavaScript
             st.header("JavaScript Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.javascript_analysis:
@@ -501,7 +656,7 @@ def main():
                             for item in comp.missing_in_static[:10]:
                                 st.markdown(f"- {item}")
         
-        with tabs[5]:  # Recommendations
+        with tabs[6]:  # Recommendations
             st.header("💡 Optimization Recommendations")
             
             if score.recommendations:

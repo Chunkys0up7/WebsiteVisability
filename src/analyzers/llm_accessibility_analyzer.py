@@ -1,0 +1,396 @@
+"""
+LLM Accessibility Analyzer Module
+
+Provides detailed analysis of what content Large Language Models can access,
+with specific explanations of limitations and capabilities.
+"""
+
+import logging
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
+
+from ..models.analysis_result import AnalysisResult, ContentAnalysis, StructureAnalysis, MetaAnalysis, JavaScriptAnalysis, StructuredDataAnalysis
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class LLMAccessibilityReport:
+    """Detailed report on LLM accessibility."""
+    
+    # Overall accessibility
+    overall_score: float
+    grade: str
+    
+    # What LLMs CAN access
+    accessible_content: Dict[str, Any]
+    
+    # What LLMs CANNOT access
+    inaccessible_content: Dict[str, Any]
+    
+    # Specific limitations
+    limitations: List[str]
+    
+    # Recommendations
+    recommendations: List[str]
+    
+    # Technical details
+    technical_analysis: Dict[str, Any]
+
+
+class LLMAccessibilityAnalyzer:
+    """
+    Analyzes web content specifically for LLM accessibility.
+    
+    Provides detailed explanations of what LLMs can read, what they cannot,
+    and why certain content is inaccessible.
+    """
+    
+    def __init__(self):
+        """Initialize the LLM accessibility analyzer."""
+        self.logger = logging.getLogger(__name__)
+    
+    def analyze(self, analysis_result: AnalysisResult) -> LLMAccessibilityReport:
+        """
+        Perform comprehensive LLM accessibility analysis.
+        
+        Args:
+            analysis_result: Complete analysis result from static/dynamic analysis
+            
+        Returns:
+            Detailed LLM accessibility report
+        """
+        self.logger.info("Starting LLM accessibility analysis...")
+        
+        # Extract components
+        content = analysis_result.content_analysis
+        structure = analysis_result.structure_analysis
+        meta = analysis_result.meta_analysis
+        js = analysis_result.javascript_analysis
+        structured_data = analysis_result.structured_data_analysis
+        
+        # Analyze what LLMs can access
+        accessible_content = self._analyze_accessible_content(content, structure, meta, structured_data)
+        
+        # Analyze what LLMs cannot access
+        inaccessible_content = self._analyze_inaccessible_content(content, structure, js)
+        
+        # Identify specific limitations
+        limitations = self._identify_limitations(content, structure, js, meta)
+        
+        # Generate recommendations
+        recommendations = self._generate_recommendations(accessible_content, inaccessible_content, limitations)
+        
+        # Calculate overall score
+        overall_score = self._calculate_llm_score(accessible_content, inaccessible_content, limitations)
+        grade = self._calculate_grade(overall_score)
+        
+        # Technical analysis
+        technical_analysis = self._perform_technical_analysis(content, structure, js, meta, structured_data)
+        
+        self.logger.info(f"LLM accessibility analysis complete. Score: {overall_score:.1f} ({grade})")
+        
+        return LLMAccessibilityReport(
+            overall_score=overall_score,
+            grade=grade,
+            accessible_content=accessible_content,
+            inaccessible_content=inaccessible_content,
+            limitations=limitations,
+            recommendations=recommendations,
+            technical_analysis=technical_analysis
+        )
+    
+    def _analyze_accessible_content(self, content: ContentAnalysis, structure: StructureAnalysis, 
+                                  meta: MetaAnalysis, structured_data: StructuredDataAnalysis) -> Dict[str, Any]:
+        """Analyze content that LLMs can access."""
+        accessible = {
+            "text_content": {
+                "main_content": content.main_content if content else "",
+                "character_count": content.character_count if content else 0,
+                "word_count": content.word_count if content else 0,
+                "explanation": "LLMs can read all visible text content, including headings, paragraphs, and inline text."
+            },
+            "semantic_structure": {
+                "headings": structure.heading_hierarchy if structure else [],
+                "semantic_elements": structure.semantic_elements if structure else [],
+                "explanation": "LLMs understand semantic HTML elements like <header>, <main>, <article>, <section>, <nav>, <footer>."
+            },
+            "meta_information": {
+                "title": meta.title if meta else "",
+                "description": meta.description if meta else "",
+                "keywords": meta.keywords if meta else [],
+                "explanation": "LLMs can access meta tags including title, description, and keywords for context."
+            },
+            "structured_data": {
+                "json_ld": structured_data.json_ld if structured_data else [],
+                "microdata": structured_data.microdata if structured_data else [],
+                "rdfa": structured_data.rdfa if structured_data else [],
+                "explanation": "LLMs can parse structured data (JSON-LD, Microdata, RDFa) for enhanced understanding."
+            },
+            "links_and_navigation": {
+                "internal_links": structure.internal_links if structure else [],
+                "external_links": structure.external_links if structure else [],
+                "explanation": "LLMs can follow and understand link structures for navigation context."
+            }
+        }
+        
+        return accessible
+    
+    def _analyze_inaccessible_content(self, content: ContentAnalysis, structure: StructureAnalysis, 
+                                     js: JavaScriptAnalysis) -> Dict[str, Any]:
+        """Analyze content that LLMs cannot access."""
+        inaccessible = {
+            "javascript_dependent_content": {
+                "dynamic_content": js.dynamic_content_detected if js else False,
+                "ajax_content": js.has_ajax if js else False,
+                "spa_content": js.is_spa if js else False,
+                "explanation": "LLMs cannot execute JavaScript, so content loaded dynamically via AJAX or SPAs is inaccessible."
+            },
+            "css_hidden_content": {
+                "hidden_elements": structure.hidden_elements if structure else [],
+                "display_none": structure.display_none_count if structure else 0,
+                "visibility_hidden": structure.visibility_hidden_count if structure else 0,
+                "explanation": "Content hidden with CSS (display:none, visibility:hidden) is not accessible to LLMs."
+            },
+            "interactive_elements": {
+                "forms": structure.form_count if structure else 0,
+                "buttons": structure.button_count if structure else 0,
+                "explanation": "LLMs cannot interact with forms, buttons, or other interactive elements."
+            },
+            "media_content": {
+                "images": structure.image_count if structure else 0,
+                "videos": structure.video_count if structure else 0,
+                "audio": structure.audio_count if structure else 0,
+                "explanation": "LLMs cannot process images, videos, or audio content directly (only alt text and metadata)."
+            },
+            "client_side_storage": {
+                "local_storage": "Not accessible",
+                "session_storage": "Not accessible", 
+                "cookies": "Not accessible",
+                "explanation": "LLMs cannot access browser storage mechanisms like localStorage, sessionStorage, or cookies."
+            }
+        }
+        
+        return inaccessible
+    
+    def _identify_limitations(self, content: ContentAnalysis, structure: StructureAnalysis, 
+                             js: JavaScriptAnalysis, meta: MetaAnalysis) -> List[str]:
+        """Identify specific LLM limitations."""
+        limitations = []
+        
+        # JavaScript limitations
+        if js and js.dynamic_content_detected:
+            limitations.append("JavaScript-dependent content: LLMs cannot execute JavaScript, missing dynamic content")
+        
+        if js and js.has_ajax:
+            limitations.append("AJAX content: Content loaded via XMLHttpRequest/fetch is not accessible")
+        
+        if js and js.is_spa:
+            limitations.append("Single Page Application: SPA content requires JavaScript execution")
+        
+        # CSS limitations
+        if structure and structure.hidden_elements:
+            limitations.append(f"CSS-hidden content: {len(structure.hidden_elements)} elements hidden from LLMs")
+        
+        # Meta limitations
+        if not meta or not meta.title:
+            limitations.append("Missing title tag: LLMs rely on <title> for page context")
+        
+        if not meta or not meta.description:
+            limitations.append("Missing meta description: Important for LLM understanding")
+        
+        # Structured data limitations
+        if not meta or not meta.structured_data:
+            limitations.append("No structured data: Missing Schema.org markup for enhanced understanding")
+        
+        # Content limitations
+        if content and content.character_count < 100:
+            limitations.append("Minimal content: Less than 100 characters may provide insufficient context")
+        
+        return limitations
+    
+    def _generate_recommendations(self, accessible_content: Dict[str, Any], 
+                                 inaccessible_content: Dict[str, Any], 
+                                 limitations: List[str]) -> List[str]:
+        """Generate specific recommendations for improving LLM accessibility."""
+        recommendations = []
+        
+        # JavaScript recommendations
+        if inaccessible_content["javascript_dependent_content"]["dynamic_content"]:
+            recommendations.append("CRITICAL: Provide server-side rendering for JavaScript-dependent content")
+            recommendations.append("Add <noscript> tags with fallback content for JavaScript features")
+        
+        # CSS recommendations
+        if inaccessible_content["css_hidden_content"]["hidden_elements"]:
+            recommendations.append("HIGH: Remove CSS hiding or provide alternative text for hidden content")
+        
+        # Meta recommendations
+        if not accessible_content["meta_information"]["title"]:
+            recommendations.append("CRITICAL: Add descriptive <title> tag")
+        
+        if not accessible_content["meta_information"]["description"]:
+            recommendations.append("HIGH: Add meta description tag")
+        
+        # Structured data recommendations
+        if not accessible_content["structured_data"]["json_ld"]:
+            recommendations.append("MEDIUM: Implement JSON-LD structured data for better LLM understanding")
+        
+        # Content recommendations
+        if accessible_content["text_content"]["character_count"] < 500:
+            recommendations.append("MEDIUM: Increase text content for better LLM context")
+        
+        return recommendations
+    
+    def _calculate_llm_score(self, accessible_content: Dict[str, Any], 
+                           inaccessible_content: Dict[str, Any], 
+                           limitations: List[str]) -> float:
+        """Calculate LLM accessibility score."""
+        score = 100.0
+        
+        # Deduct for JavaScript dependencies
+        if inaccessible_content["javascript_dependent_content"]["dynamic_content"]:
+            score -= 30
+        if inaccessible_content["javascript_dependent_content"]["ajax_content"]:
+            score -= 20
+        if inaccessible_content["javascript_dependent_content"]["spa_content"]:
+            score -= 25
+        
+        # Deduct for hidden content
+        hidden_count = inaccessible_content["css_hidden_content"]["display_none"] + \
+                      inaccessible_content["css_hidden_content"]["visibility_hidden"]
+        if hidden_count > 0:
+            score -= min(15, hidden_count * 2)
+        
+        # Deduct for missing meta information
+        if not accessible_content["meta_information"]["title"]:
+            score -= 15
+        if not accessible_content["meta_information"]["description"]:
+            score -= 10
+        
+        # Deduct for lack of structured data
+        if not accessible_content["structured_data"]["json_ld"]:
+            score -= 10
+        
+        # Deduct for minimal content
+        char_count = accessible_content["text_content"]["character_count"]
+        if char_count < 100:
+            score -= 20
+        elif char_count < 500:
+            score -= 10
+        
+        return max(0, score)
+    
+    def _calculate_grade(self, score: float) -> str:
+        """Calculate letter grade from score."""
+        if score >= 97:
+            return "A+"
+        elif score >= 93:
+            return "A"
+        elif score >= 90:
+            return "A-"
+        elif score >= 87:
+            return "B+"
+        elif score >= 83:
+            return "B"
+        elif score >= 80:
+            return "B-"
+        elif score >= 77:
+            return "C+"
+        elif score >= 73:
+            return "C"
+        elif score >= 70:
+            return "C-"
+        elif score >= 67:
+            return "D+"
+        elif score >= 63:
+            return "D"
+        elif score >= 60:
+            return "D-"
+        else:
+            return "F"
+    
+    def _perform_technical_analysis(self, content: ContentAnalysis, structure: StructureAnalysis,
+                                  js: JavaScriptAnalysis, meta: MetaAnalysis, 
+                                  structured_data: StructuredDataAnalysis) -> Dict[str, Any]:
+        """Perform detailed technical analysis."""
+        return {
+            "content_metrics": {
+                "total_characters": content.character_count if content else 0,
+                "total_words": content.word_count if content else 0,
+                "paragraphs": content.paragraph_count if content else 0,
+                "readability_score": self._calculate_readability(content) if content else 0
+            },
+            "structure_metrics": {
+                "heading_depth": len(structure.heading_hierarchy) if structure else 0,
+                "semantic_elements": len(structure.semantic_elements) if structure else 0,
+                "dom_depth": structure.dom_depth if structure else 0,
+                "accessibility_score": self._calculate_accessibility_score(structure) if structure else 0
+            },
+            "javascript_metrics": {
+                "script_count": js.script_count if js else 0,
+                "framework_count": len(js.frameworks) if js else 0,
+                "dynamic_dependency": js.dynamic_content_detected if js else False,
+                "complexity_score": self._calculate_js_complexity(js) if js else 0
+            },
+            "meta_completeness": {
+                "title_present": bool(meta.title) if meta else False,
+                "description_present": bool(meta.description) if meta else False,
+                "og_tags": len(meta.open_graph_tags) if meta else 0,
+                "structured_data_items": len(meta.structured_data) if meta else 0
+            }
+        }
+    
+    def _calculate_readability(self, content: ContentAnalysis) -> float:
+        """Calculate content readability score."""
+        if not content or content.word_count == 0:
+            return 0
+        
+        # Simple readability based on word length and sentence structure
+        avg_word_length = content.character_count / content.word_count
+        readability = max(0, 100 - (avg_word_length * 10))
+        return min(100, readability)
+    
+    def _calculate_accessibility_score(self, structure: StructureAnalysis) -> float:
+        """Calculate HTML accessibility score."""
+        if not structure:
+            return 0
+        
+        score = 0
+        
+        # Semantic elements
+        score += min(20, len(structure.semantic_elements) * 2)
+        
+        # Heading hierarchy
+        if structure.heading_hierarchy:
+            score += min(15, len(structure.heading_hierarchy) * 3)
+        
+        # Low DOM depth is better
+        if structure.dom_depth <= 10:
+            score += 15
+        elif structure.dom_depth <= 20:
+            score += 10
+        
+        return min(100, score)
+    
+    def _calculate_js_complexity(self, js: JavaScriptAnalysis) -> float:
+        """Calculate JavaScript complexity score."""
+        if not js:
+            return 0
+        
+        complexity = 0
+        
+        # More scripts = higher complexity
+        complexity += min(30, js.script_count * 2)
+        
+        # Frameworks add complexity
+        complexity += min(20, len(js.frameworks) * 5)
+        
+        # Dynamic content adds complexity
+        if js.dynamic_content_detected:
+            complexity += 25
+        
+        # AJAX adds complexity
+        if js.has_ajax:
+            complexity += 15
+        
+        return min(100, complexity)
