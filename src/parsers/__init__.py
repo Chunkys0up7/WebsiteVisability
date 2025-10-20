@@ -3,12 +3,9 @@ Parsers for HTML, meta tags, and structured data
 """
 
 from .html_parser import HTMLParser
+from .meta_parser import MetaParser
 
 # Import other parsers when they're implemented
-try:
-    from .meta_parser import MetaParser
-except ImportError:
-    MetaParser = None
 
 try:
     from .structured_data_parser import StructuredDataParser
