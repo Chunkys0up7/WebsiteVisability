@@ -190,49 +190,49 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 st.session_state.comparison = comparison
                 logger.info(f"Content comparison completed for {url}")
         
-               # LLM Accessibility Analysis
-               with st.spinner("🤖 Analyzing LLM accessibility..."):
-                   llm_analyzer = LLMAccessibilityAnalyzer()
-                   llm_report = llm_analyzer.analyze(static_result)
-                   st.session_state.llm_report = llm_report
-                   logger.info(f"LLM accessibility analysis completed for {url}")
-               
-               # SSR Detection
-               if analysis_type in ["Comprehensive Analysis", "SSR Detection Only"]:
-                   with st.spinner("🔍 Detecting SSR patterns..."):
-                       ssr_detector = SSRDetector()
-                       ssr_detection = ssr_detector.detect_ssr(static_result.content_analysis.text_content if static_result.content_analysis else "", 
-                                                               static_result.javascript_analysis)
-                       st.session_state.ssr_detection = ssr_detection
-                       logger.info(f"SSR detection completed for {url}")
-               
-               # Web Crawler Testing
-               if analysis_type in ["Comprehensive Analysis", "Web Crawler Testing"]:
-                   if crawler_types is None:
-                       crawler_types = ["llm", "googlebot"]
-                   
-                   crawler_analyzer = WebCrawlerAnalyzer()
-                   crawler_results = {}
-                   
-                   for crawler_type in crawler_types:
-                       with st.spinner(f"🕷️ Testing {crawler_type} accessibility..."):
-                           try:
-                               crawler_result = crawler_analyzer.analyze_crawler_accessibility(url, crawler_type, static_result)
-                               crawler_results[crawler_type] = crawler_result
-                               logger.info(f"{crawler_type} analysis completed for {url}")
-                           except Exception as e:
-                               st.warning(f"Failed to analyze {crawler_type}: {str(e)}")
-                               logger.error(f"Crawler analysis error for {crawler_type} on {url}: {e}")
-                   
-                   st.session_state.crawler_analysis = crawler_results
-               
-               # Evidence Capture
-               if capture_evidence and st.session_state.crawler_analysis:
-                   with st.spinner("📊 Capturing evidence and generating reports..."):
-                       evidence_capture = EvidenceCapture()
-                       evidence_report = evidence_capture.create_evidence_report(url, st.session_state.crawler_analysis)
-                       st.session_state.evidence_report = evidence_report
-                       logger.info(f"Evidence report generated for {url}")
+        # LLM Accessibility Analysis
+        with st.spinner("🤖 Analyzing LLM accessibility..."):
+            llm_analyzer = LLMAccessibilityAnalyzer()
+            llm_report = llm_analyzer.analyze(static_result)
+            st.session_state.llm_report = llm_report
+            logger.info(f"LLM accessibility analysis completed for {url}")
+        
+        # SSR Detection
+        if analysis_type in ["Comprehensive Analysis", "SSR Detection Only"]:
+            with st.spinner("🔍 Detecting SSR patterns..."):
+                ssr_detector = SSRDetector()
+                ssr_detection = ssr_detector.detect_ssr(static_result.content_analysis.text_content if static_result.content_analysis else "", 
+                                                        static_result.javascript_analysis)
+                st.session_state.ssr_detection = ssr_detection
+                logger.info(f"SSR detection completed for {url}")
+        
+        # Web Crawler Testing
+        if analysis_type in ["Comprehensive Analysis", "Web Crawler Testing"]:
+            if crawler_types is None:
+                crawler_types = ["llm", "googlebot"]
+            
+            crawler_analyzer = WebCrawlerAnalyzer()
+            crawler_results = {}
+            
+            for crawler_type in crawler_types:
+                with st.spinner(f"🕷️ Testing {crawler_type} accessibility..."):
+                    try:
+                        crawler_result = crawler_analyzer.analyze_crawler_accessibility(url, crawler_type, static_result)
+                        crawler_results[crawler_type] = crawler_result
+                        logger.info(f"{crawler_type} analysis completed for {url}")
+                    except Exception as e:
+                        st.warning(f"Failed to analyze {crawler_type}: {str(e)}")
+                        logger.error(f"Crawler analysis error for {crawler_type} on {url}: {e}")
+            
+            st.session_state.crawler_analysis = crawler_results
+        
+        # Evidence Capture
+        if capture_evidence and st.session_state.crawler_analysis:
+            with st.spinner("📊 Capturing evidence and generating reports..."):
+                evidence_capture = EvidenceCapture()
+                evidence_report = evidence_capture.create_evidence_report(url, st.session_state.crawler_analysis)
+                st.session_state.evidence_report = evidence_report
+                logger.info(f"Evidence report generated for {url}")
         
         # Scoring
         with st.spinner("⚡ Calculating scores and generating recommendations..."):
