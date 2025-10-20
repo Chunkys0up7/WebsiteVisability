@@ -4,7 +4,7 @@ Data models for analysis results
 
 from typing import List, Dict, Optional, Any
 from datetime import datetime
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, HttpUrl, Field, ConfigDict
 
 
 class ContentAnalysis(BaseModel):
@@ -147,8 +147,9 @@ class AnalysisResult(BaseModel):
     page_load_time_seconds: Optional[float] = None
     page_size_bytes: Optional[int] = None
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 

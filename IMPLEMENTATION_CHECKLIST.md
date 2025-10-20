@@ -15,14 +15,14 @@ Track your progress as you build the Web Scraper & LLM Analyzer application.
 ## 📝 Phase 2: Core Parsers
 
 ### HTML Parser (`src/parsers/html_parser.py`)
-- [ ] Create HTMLParser class
-- [ ] Implement text extraction
-- [ ] Parse heading hierarchy (H1-H6)
-- [ ] Detect semantic HTML elements
-- [ ] Count structural elements (paragraphs, links, images, tables, lists)
-- [ ] Detect CSS-hidden elements (display:none, visibility:hidden)
-- [ ] Calculate DOM depth
-- [ ] Write unit tests
+- [x] Create HTMLParser class
+- [x] Implement text extraction
+- [x] Parse heading hierarchy (H1-H6)
+- [x] Detect semantic HTML elements
+- [x] Count structural elements (paragraphs, links, images, tables, lists)
+- [x] Detect CSS-hidden elements (display:none, visibility:hidden)
+- [x] Calculate DOM depth
+- [x] Write unit tests (23 tests, all passing, 90% coverage)
 
 ### Meta Parser (`src/parsers/meta_parser.py`)
 - [ ] Create MetaParser class
@@ -285,16 +285,16 @@ Track your progress as you build the Web Scraper & LLM Analyzer application.
 ## 📊 Progress Summary
 
 - **Setup**: ✅ 100% Complete (8/8)
-- **Core Parsers**: ⏳ 0% Complete (0/32)
+- **Core Parsers**: ⏳ 25% Complete (8/32) - HTML Parser done
 - **Analysis Engines**: ⏳ 0% Complete (0/44)
 - **Web Interface**: ⏳ 0% Complete (0/70)
-- **Testing**: ⏳ 0% Complete (0/16)
+- **Testing**: ⏳ 6% Complete (1/16) - HTMLParser tests done
 - **Export**: ⏳ 0% Complete (0/6)
 - **Advanced Features**: ⏳ 0% Complete (0/11)
 - **Documentation**: ⏳ 0% Complete (0/8)
 - **Deployment**: ⏳ 0% Complete (0/10)
 
-**Overall Progress**: 8/205 tasks complete (3.9%)
+**Overall Progress**: 17/206 tasks complete (8.3%)
 
 ---
 

@@ -4,7 +4,8 @@ Application settings and configuration
 
 import os
 from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
@@ -45,10 +46,11 @@ class Settings(BaseSettings):
         "Chrome/120.0.0.0 Safari/537.36"
     )
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False
+    )
 
 
 @lru_cache()
