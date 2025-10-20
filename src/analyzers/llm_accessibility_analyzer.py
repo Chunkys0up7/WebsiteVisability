@@ -9,7 +9,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
-from ..models.analysis_result import AnalysisResult, ContentAnalysis, StructureAnalysis, MetaAnalysis, JavaScriptAnalysis, StructuredDataAnalysis
+from ..models.analysis_result import AnalysisResult, ContentAnalysis, StructureAnalysis, MetaAnalysis, JavaScriptAnalysis, HiddenContent
 
 logger = logging.getLogger(__name__)
 
@@ -67,16 +67,16 @@ class LLMAccessibilityAnalyzer:
         structure = analysis_result.structure_analysis
         meta = analysis_result.meta_analysis
         js = analysis_result.javascript_analysis
-        structured_data = analysis_result.structured_data_analysis
+        hidden_content = analysis_result.hidden_content
         
         # Analyze what LLMs can access
-        accessible_content = self._analyze_accessible_content(content, structure, meta, structured_data)
+        accessible_content = self._analyze_accessible_content(content, structure, meta)
         
         # Analyze what LLMs cannot access
-        inaccessible_content = self._analyze_inaccessible_content(content, structure, js)
+        inaccessible_content = self._analyze_inaccessible_content(content, structure, js, hidden_content)
         
         # Identify specific limitations
-        limitations = self._identify_limitations(content, structure, js, meta)
+        limitations = self._identify_limitations(content, structure, js, meta, hidden_content)
         
         # Generate recommendations
         recommendations = self._generate_recommendations(accessible_content, inaccessible_content, limitations)
@@ -86,7 +86,7 @@ class LLMAccessibilityAnalyzer:
         grade = self._calculate_grade(overall_score)
         
         # Technical analysis
-        technical_analysis = self._perform_technical_analysis(content, structure, js, meta, structured_data)
+        technical_analysis = self._perform_technical_analysis(content, structure, js, meta)
         
         self.logger.info(f"LLM accessibility analysis complete. Score: {overall_score:.1f} ({grade})")
         
@@ -101,11 +101,11 @@ class LLMAccessibilityAnalyzer:
         )
     
     def _analyze_accessible_content(self, content: ContentAnalysis, structure: StructureAnalysis, 
-                                  meta: MetaAnalysis, structured_data: StructuredDataAnalysis) -> Dict[str, Any]:
+                                  meta: MetaAnalysis) -> Dict[str, Any]:
         """Analyze content that LLMs can access."""
         accessible = {
             "text_content": {
-                "main_content": content.main_content if content else "",
+                "main_content": content.text_content if content else "",
                 "character_count": content.character_count if content else 0,
                 "word_count": content.word_count if content else 0,
                 "explanation": "LLMs can read all visible text content, including headings, paragraphs, and inline text."
@@ -122,9 +122,9 @@ class LLMAccessibilityAnalyzer:
                 "explanation": "LLMs can access meta tags including title, description, and keywords for context."
             },
             "structured_data": {
-                "json_ld": structured_data.json_ld if structured_data else [],
-                "microdata": structured_data.microdata if structured_data else [],
-                "rdfa": structured_data.rdfa if structured_data else [],
+                "json_ld": [item for item in (meta.structured_data if meta else []) if item.type == 'json-ld'],
+                "microdata": [item for item in (meta.structured_data if meta else []) if item.type == 'microdata'],
+                "rdfa": [item for item in (meta.structured_data if meta else []) if item.type == 'rdfa'],
                 "explanation": "LLMs can parse structured data (JSON-LD, Microdata, RDFa) for enhanced understanding."
             },
             "links_and_navigation": {
@@ -137,7 +137,7 @@ class LLMAccessibilityAnalyzer:
         return accessible
     
     def _analyze_inaccessible_content(self, content: ContentAnalysis, structure: StructureAnalysis, 
-                                     js: JavaScriptAnalysis) -> Dict[str, Any]:
+                                     js: JavaScriptAnalysis, hidden_content: Optional[HiddenContent]) -> Dict[str, Any]:
         """Analyze content that LLMs cannot access."""
         inaccessible = {
             "javascript_dependent_content": {
@@ -147,20 +147,20 @@ class LLMAccessibilityAnalyzer:
                 "explanation": "LLMs cannot execute JavaScript, so content loaded dynamically via AJAX or SPAs is inaccessible."
             },
             "css_hidden_content": {
-                "hidden_elements": structure.hidden_elements if structure else [],
-                "display_none": structure.display_none_count if structure else 0,
-                "visibility_hidden": structure.visibility_hidden_count if structure else 0,
+                "hidden_elements": hidden_content.hidden_elements if hidden_content else [],
+                "display_none": hidden_content.display_none_count if hidden_content else 0,
+                "visibility_hidden": hidden_content.visibility_hidden_count if hidden_content else 0,
                 "explanation": "Content hidden with CSS (display:none, visibility:hidden) is not accessible to LLMs."
             },
             "interactive_elements": {
-                "forms": structure.form_count if structure else 0,
-                "buttons": structure.button_count if structure else 0,
+                "forms": 0,  # Not tracked in current model
+                "buttons": 0,  # Not tracked in current model
                 "explanation": "LLMs cannot interact with forms, buttons, or other interactive elements."
             },
             "media_content": {
-                "images": structure.image_count if structure else 0,
-                "videos": structure.video_count if structure else 0,
-                "audio": structure.audio_count if structure else 0,
+                "images": content.images if content else 0,
+                "videos": 0,  # Not tracked in current model
+                "audio": 0,  # Not tracked in current model
                 "explanation": "LLMs cannot process images, videos, or audio content directly (only alt text and metadata)."
             },
             "client_side_storage": {
@@ -174,7 +174,7 @@ class LLMAccessibilityAnalyzer:
         return inaccessible
     
     def _identify_limitations(self, content: ContentAnalysis, structure: StructureAnalysis, 
-                             js: JavaScriptAnalysis, meta: MetaAnalysis) -> List[str]:
+                             js: JavaScriptAnalysis, meta: MetaAnalysis, hidden_content: Optional[HiddenContent]) -> List[str]:
         """Identify specific LLM limitations."""
         limitations = []
         
@@ -189,8 +189,8 @@ class LLMAccessibilityAnalyzer:
             limitations.append("Single Page Application: SPA content requires JavaScript execution")
         
         # CSS limitations
-        if structure and structure.hidden_elements:
-            limitations.append(f"CSS-hidden content: {len(structure.hidden_elements)} elements hidden from LLMs")
+        if hidden_content and hidden_content.hidden_elements:
+            limitations.append(f"CSS-hidden content: {len(hidden_content.hidden_elements)} elements hidden from LLMs")
         
         # Meta limitations
         if not meta or not meta.title:
@@ -310,20 +310,19 @@ class LLMAccessibilityAnalyzer:
             return "F"
     
     def _perform_technical_analysis(self, content: ContentAnalysis, structure: StructureAnalysis,
-                                  js: JavaScriptAnalysis, meta: MetaAnalysis, 
-                                  structured_data: StructuredDataAnalysis) -> Dict[str, Any]:
+                                  js: JavaScriptAnalysis, meta: MetaAnalysis) -> Dict[str, Any]:
         """Perform detailed technical analysis."""
         return {
             "content_metrics": {
                 "total_characters": content.character_count if content else 0,
                 "total_words": content.word_count if content else 0,
-                "paragraphs": content.paragraph_count if content else 0,
+                "paragraphs": content.paragraphs if content else 0,
                 "readability_score": self._calculate_readability(content) if content else 0
             },
             "structure_metrics": {
-                "heading_depth": len(structure.heading_hierarchy) if structure else 0,
+                "heading_depth": len(structure.heading_hierarchy.h1 + structure.heading_hierarchy.h2 + structure.heading_hierarchy.h3) if structure else 0,
                 "semantic_elements": len(structure.semantic_elements) if structure else 0,
-                "dom_depth": structure.dom_depth if structure else 0,
+                "dom_depth": structure.nested_depth if structure else 0,
                 "accessibility_score": self._calculate_accessibility_score(structure) if structure else 0
             },
             "javascript_metrics": {
@@ -362,12 +361,13 @@ class LLMAccessibilityAnalyzer:
         
         # Heading hierarchy
         if structure.heading_hierarchy:
-            score += min(15, len(structure.heading_hierarchy) * 3)
+            total_headings = len(structure.heading_hierarchy.h1 + structure.heading_hierarchy.h2 + structure.heading_hierarchy.h3)
+            score += min(15, total_headings * 3)
         
         # Low DOM depth is better
-        if structure.dom_depth <= 10:
+        if structure.nested_depth <= 10:
             score += 15
-        elif structure.dom_depth <= 20:
+        elif structure.nested_depth <= 20:
             score += 10
         
         return min(100, score)
