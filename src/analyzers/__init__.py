@@ -4,11 +4,7 @@ Analysis engines for web content evaluation
 
 # Import analyzers when they're implemented
 from .static_analyzer import StaticAnalyzer
-
-try:
-    from .dynamic_analyzer import DynamicAnalyzer
-except ImportError:
-    DynamicAnalyzer = None
+from .dynamic_analyzer import DynamicAnalyzer
 
 try:
     from .content_comparator import ContentComparator
