@@ -120,6 +120,7 @@ class ContentComparison(BaseModel):
     similarity_score: float  # 0.0 to 1.0
     javascript_dependent: bool
     missing_in_static: List[str]
+    added_elements: List[str] = Field(default_factory=list)
 
 
 class AnalysisResult(BaseModel):
