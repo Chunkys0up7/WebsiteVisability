@@ -128,8 +128,8 @@ class LLMAccessibilityAnalyzer:
                 "explanation": "LLMs can parse structured data (JSON-LD, Microdata, RDFa) for enhanced understanding."
             },
             "links_and_navigation": {
-                "internal_links": structure.internal_links if structure else [],
-                "external_links": structure.external_links if structure else [],
+                "internal_links": [],  # Not tracked in current model
+                "external_links": [],  # Not tracked in current model
                 "explanation": "LLMs can follow and understand link structures for navigation context."
             }
         }
@@ -326,7 +326,7 @@ class LLMAccessibilityAnalyzer:
                 "accessibility_score": self._calculate_accessibility_score(structure) if structure else 0
             },
             "javascript_metrics": {
-                "script_count": js.script_count if js else 0,
+                "script_count": js.total_scripts if js else 0,
                 "framework_count": len(js.frameworks) if js else 0,
                 "dynamic_dependency": js.dynamic_content_detected if js else False,
                 "complexity_score": self._calculate_js_complexity(js) if js else 0
@@ -380,7 +380,7 @@ class LLMAccessibilityAnalyzer:
         complexity = 0
         
         # More scripts = higher complexity
-        complexity += min(30, js.script_count * 2)
+        complexity += min(30, js.total_scripts * 2)
         
         # Frameworks add complexity
         complexity += min(20, len(js.frameworks) * 5)
