@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  web_analyzer:
+    build: .
+    container_name: web_scraper_llm_analyzer
+    ports:
+      - "8501:8501"
+    environment:
+      - DEBUG=False
+      - LOG_LEVEL=INFO
+      - BROWSER_HEADLESS=True
+    volumes:
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+

@@ -1,0 +1,37 @@
+# Core Web Scraping and Parsing
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+html5lib>=1.1
+
+# Headless Browser Automation
+selenium>=4.15.0
+playwright>=1.40.0
+webdriver-manager>=4.0.0
+
+# Web Framework
+streamlit>=1.28.0
+plotly>=5.17.0
+streamlit-aggrid>=0.3.4
+
+# Data Processing
+pandas>=2.1.0
+numpy>=1.24.0
+
+# Token Counting for LLM Analysis
+tiktoken>=0.5.0
+
+# Utilities
+python-dotenv>=1.0.0
+validators>=0.22.0
+python-dateutil>=2.8.0
+pydantic>=2.5.0
+
+# Export and Reporting
+reportlab>=4.0.0
+markdown>=3.5.0
+jinja2>=3.1.0
+
+# Logging and Monitoring
+colorlog>=6.7.0
+
