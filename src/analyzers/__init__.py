@@ -3,10 +3,7 @@ Analysis engines for web content evaluation
 """
 
 # Import analyzers when they're implemented
-try:
-    from .static_analyzer import StaticAnalyzer
-except ImportError:
-    StaticAnalyzer = None
+from .static_analyzer import StaticAnalyzer
 
 try:
     from .dynamic_analyzer import DynamicAnalyzer
