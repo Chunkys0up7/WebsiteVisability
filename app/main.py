@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 import time
 import pandas as pd
+import html
 from typing import Optional, List, Any
 
 from src.analyzers import StaticAnalyzer, DynamicAnalyzer, ContentComparator, ScoringEngine
@@ -52,7 +53,8 @@ st.markdown("""
     .main .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
-        max-width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
     }
 
     /* Main Header */
@@ -311,7 +313,8 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 static_result = static_analyzer.analyze(url)
                 
                 if static_result.status != "success":
-                    st.error(f"Static analysis failed: {static_result.message}")
+                    error_msg = static_result.error_message or "Unknown error"
+                    st.error(f"Static analysis failed: {error_msg}")
                     status.update(label="Static analysis failed.", state="error")
                     return False
                 
@@ -327,7 +330,8 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                     dynamic_result = dynamic_analyzer.analyze(url)
                     
                     if dynamic_result and dynamic_result.status != "success":
-                        st.warning(f"Dynamic analysis failed: {dynamic_result.message}")
+                        error_msg = dynamic_result.error_message or "Unknown error"
+                        st.warning(f"Dynamic analysis failed: {error_msg}")
                         dynamic_result = None
                     else:
                         st.session_state.dynamic_result = dynamic_result
@@ -404,7 +408,15 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 
                 evidence_data = {}
                 if st.session_state.crawler_analysis:
-                    evidence_data.update(st.session_state.crawler_analysis)
+                    # Convert CrawlerAnalysisResult objects to AnalysisEvidence objects
+                    for crawler_type, crawler_result in st.session_state.crawler_analysis.items():
+                        evidence = evidence_capture.capture_evidence(
+                            url=url,
+                            crawler_type=crawler_type,
+                            analysis_result=crawler_result,
+                            technical_details={'accessibility_score': crawler_result.accessibility_score}
+                        )
+                        evidence_data[crawler_type] = evidence
                 
                 if evidence_data:
                     evidence_report = evidence_capture.create_evidence_report(url, evidence_data)
@@ -633,7 +645,9 @@ def main():
             st.markdown('<h2 class="section-header">🎯 Executive Summary & Key Takeaways</h2>', unsafe_allow_html=True)
             
             if st.session_state.analyzed_url:
-                st.markdown(f"**Analysis for:** `{st.session_state.analyzed_url}`")
+                # Sanitize URL to prevent XSS
+                sanitized_url = html.escape(st.session_state.analyzed_url)
+                st.markdown(f"**Analysis for:** `{sanitized_url}`")
                 st.markdown(f"**Analysis Type:** `{st.session_state.last_analysis_type}`")
                 st.markdown(f"**Duration:** `{st.session_state.analysis_duration:.2f} seconds`")
                 st.markdown("---")
@@ -859,6 +873,415 @@ def main():
             else:
                 st.info("LLM analysis not available. Please run the analysis first with **'Comprehensive Analysis'** or **'LLM Accessibility Only'**.")
         
+        with tabs[3]:  # Enhanced LLM Analysis
+            st.markdown('<h2 class="section-header">🔬 Enhanced LLM Analysis</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.enhanced_llm_report:
+                report = st.session_state.enhanced_llm_report
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Enhanced LLM Score", f"{report.overall_score:.1f}/100", 
+                             delta=f"Grade: {report.grade}")
+                with col2:
+                    st.metric("Crawler Capabilities", f"{len(report.crawler_analysis)}")
+                with col3:
+                    st.metric("Technical Issues", f"{len(report.technical_explanations)}")
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">🤖 LLM Crawler Capabilities</h3>', unsafe_allow_html=True)
+                
+                for crawler_name, capability in report.crawler_analysis.items():
+                    with st.expander(f"**{capability.name}** - Score: {capability.accessibility_score:.1f}/100"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**Capabilities:**")
+                            st.write(f"• JavaScript Execution: {'✅' if capability.executes_javascript else '❌'}")
+                            st.write(f"• Headless Browser: {'✅' if capability.uses_headless_browser else '❌'}")
+                            st.write(f"• Real-time Access: {'✅' if capability.real_time_access else '❌'}")
+                        
+                        with col2:
+                            st.markdown("**Strategy:**")
+                            st.write(f"• Chunking: {capability.chunking_strategy}")
+                            st.write(f"• Vectorization: {capability.vectorization_quality}")
+                            st.write(f"• Schema Preference: {capability.schema_preference}")
+                        
+                        if capability.limitations:
+                            st.markdown("**Limitations:**")
+                            for limitation in capability.limitations:
+                                st.write(f"• {limitation}")
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">📊 Technical Analysis</h3>', unsafe_allow_html=True)
+                
+                for category, explanation in report.technical_explanations.items():
+                    st.markdown(f"**{category.replace('_', ' ').title()}:**")
+                    st.write(explanation)
+                    st.markdown("---")
+            else:
+                st.info("Enhanced LLM analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
+        
+        with tabs[4]:  # LLMs.txt Analysis
+            st.markdown('<h2 class="section-header">📄 LLMs.txt Analysis</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.llms_txt_analysis:
+                analysis = st.session_state.llms_txt_analysis
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("LLMs.txt Present", "✅ Yes" if analysis.is_present else "❌ No")
+                with col2:
+                    st.metric("Quality Score", f"{analysis.quality_score:.1f}/100" if analysis.is_present else "N/A")
+                with col3:
+                    st.metric("Format Valid", "✅ Yes" if analysis.format_valid else "❌ No")
+                
+                st.markdown("---")
+                
+                if analysis.is_present:
+                    st.markdown('<h3 class="sub-section-header">📄 File Content</h3>', unsafe_allow_html=True)
+                    st.code(analysis.content, language="markdown")
+                    
+                    if analysis.sections:
+                        st.markdown('<h3 class="sub-section-header">📋 Sections Found</h3>', unsafe_allow_html=True)
+                        for section_name, section_content in analysis.sections.items():
+                            st.markdown(f"**{section_name}:**")
+                            st.write(section_content)
+                            st.markdown("---")
+                    
+                    if analysis.benefits:
+                        st.markdown('<h3 class="sub-section-header">✅ Benefits</h3>', unsafe_allow_html=True)
+                        for benefit in analysis.benefits:
+                            st.write(f"• {benefit}")
+                    
+                    if analysis.issues:
+                        st.markdown('<h3 class="sub-section-header">⚠️ Issues Found</h3>', unsafe_allow_html=True)
+                        for issue in analysis.issues:
+                            st.warning(f"• {issue}")
+                    
+                    if analysis.recommendations:
+                        st.markdown('<h3 class="sub-section-header">💡 Recommendations</h3>', unsafe_allow_html=True)
+                        for rec in analysis.recommendations:
+                            st.info(f"• {rec}")
+                else:
+                    st.warning("No llms.txt file found at the website root.")
+                    st.info("**What is llms.txt?** It's a new standard (2024-2025) for guiding AI crawlers to quality content, different from robots.txt which focuses on exclusion.")
+                    
+                    st.markdown('<h3 class="sub-section-header">💡 Recommendations</h3>', unsafe_allow_html=True)
+                    for rec in analysis.recommendations:
+                        st.info(f"• {rec}")
+            else:
+                st.info("LLMs.txt analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
+        
+        with tabs[6]:  # SSR Detection
+            st.markdown('<h2 class="section-header">🔍 Server-Side Rendering (SSR) Detection</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.ssr_detection:
+                ssr = st.session_state.ssr_detection
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("SSR Detected", "✅ Yes" if ssr.is_ssr else "❌ No")
+                with col2:
+                    st.metric("Confidence", f"{ssr.confidence:.1%}" if hasattr(ssr, 'confidence') else "N/A")
+                with col3:
+                    st.metric("Rendering Type", ssr.rendering_type if hasattr(ssr, 'rendering_type') else "Unknown")
+                
+                st.markdown("---")
+                
+                if hasattr(ssr, 'reasoning') and ssr.reasoning:
+                    st.markdown('<h3 class="sub-section-header">🔍 Analysis Reasoning</h3>', unsafe_allow_html=True)
+                    st.write(ssr.reasoning)
+                
+                if hasattr(ssr, 'indicators') and ssr.indicators:
+                    st.markdown('<h3 class="sub-section-header">📊 Detection Indicators</h3>', unsafe_allow_html=True)
+                    for indicator in ssr.indicators:
+                        st.write(f"• {indicator}")
+                
+                if ssr.is_ssr:
+                    st.success("✅ **Your site uses Server-Side Rendering!** This is excellent for web crawlers and LLMs as content is immediately available.")
+                else:
+                    st.warning("⚠️ **No strong SSR detected.** Consider implementing Server-Side Rendering for better accessibility to crawlers and LLMs.")
+                    
+                    st.markdown('<h3 class="sub-section-header">💡 SSR Benefits</h3>', unsafe_allow_html=True)
+                    st.write("• **Immediate Content Availability**: Content is rendered on the server before sending to browsers")
+                    st.write("• **Better SEO**: Search engines can easily crawl and index your content")
+                    st.write("• **LLM Accessibility**: AI systems can read your content without executing JavaScript")
+                    st.write("• **Faster Initial Load**: Users see content immediately, even on slow connections")
+            else:
+                st.info("SSR detection not available. Please run a 'Comprehensive Analysis' or 'SSR Detection Only'.")
+        
+        with tabs[7]:  # Crawler Testing
+            st.markdown('<h2 class="section-header">🕷️ Web Crawler Testing</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.crawler_analysis:
+                st.markdown('<h3 class="sub-section-header">🤖 Crawler Analysis Results</h3>', unsafe_allow_html=True)
+                
+                for crawler_type, result in st.session_state.crawler_analysis.items():
+                    with st.expander(f"**{result.crawler_name}** - Score: {result.accessibility_score:.1f}/100"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**✅ Accessible Content:**")
+                            for content_type, details in result.content_accessible.items():
+                                if isinstance(details, dict) and details.get('available'):
+                                    st.write(f"• {content_type}: {details.get('explanation', 'Available')}")
+                        
+                        with col2:
+                            st.markdown("**❌ Inaccessible Content:**")
+                            for content_type, details in result.content_inaccessible.items():
+                                if isinstance(details, dict) and not details.get('available', True):
+                                    st.write(f"• {content_type}: {details.get('explanation', 'Not available')}")
+                        
+                        if result.evidence:
+                            st.markdown("**🔍 Evidence:**")
+                            for evidence_item in result.evidence[:5]:  # Show first 5 items
+                                st.write(f"• {evidence_item}")
+                        
+                        if result.recommendations:
+                            st.markdown("**💡 Recommendations:**")
+                            for rec in result.recommendations[:3]:  # Show first 3 recommendations
+                                st.info(f"• {rec}")
+            else:
+                st.info("Crawler testing not available. Please run a 'Comprehensive Analysis' or 'Web Crawler Testing'.")
+        
+        with tabs[8]:  # Evidence Report
+            st.markdown('<h2 class="section-header">📊 Evidence Report</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.evidence_report:
+                report = st.session_state.evidence_report
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Analysis ID", report.analysis_id[:8] + "...")
+                with col2:
+                    st.metric("Crawlers Tested", len(report.crawler_comparisons))
+                with col3:
+                    st.metric("Total Issues", report.summary.get('total_issues', 0))
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">📋 Summary</h3>', unsafe_allow_html=True)
+                for key, value in report.summary.items():
+                    st.write(f"**{key.replace('_', ' ').title()}:** {value}")
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">🔍 Crawler Comparisons</h3>', unsafe_allow_html=True)
+                for crawler_type, evidence in report.crawler_comparisons.items():
+                    with st.expander(f"**{crawler_type}** Evidence"):
+                        st.write(f"**Timestamp:** {evidence.timestamp}")
+                        st.write(f"**URL:** {evidence.url}")
+                        st.write(f"**Evidence Hash:** {evidence.evidence_hash[:8]}...")
+                        
+                        st.markdown("**Content Sample:**")
+                        st.code(evidence.content_sample[:500] + "..." if len(evidence.content_sample) > 500 else evidence.content_sample)
+                        
+                        if evidence.accessibility_issues:
+                            st.markdown("**Accessibility Issues:**")
+                            for issue in evidence.accessibility_issues:
+                                st.warning(f"• {issue}")
+                        
+                        if evidence.recommendations:
+                            st.markdown("**Recommendations:**")
+                            for rec in evidence.recommendations:
+                                st.info(f"• {rec}")
+                
+                if report.recommendations:
+                    st.markdown('<h3 class="sub-section-header">💡 Overall Recommendations</h3>', unsafe_allow_html=True)
+                    for rec in report.recommendations:
+                        st.info(f"• {rec}")
+            else:
+                st.info("Evidence report not available. Please run a 'Comprehensive Analysis' or 'Web Crawler Testing'.")
+        
+        with tabs[9]:  # Content
+            st.markdown('<h2 class="section-header">📝 Content Analysis</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.static_result and st.session_state.static_result.content_analysis:
+                content = st.session_state.static_result.content_analysis
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Characters", f"{content.character_count:,}")
+                with col2:
+                    st.metric("Words", f"{content.word_count:,}")
+                with col3:
+                    st.metric("Paragraphs", content.paragraphs)
+                with col4:
+                    st.metric("Estimated Tokens", f"{content.estimated_tokens:,}")
+                
+                st.markdown("---")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Links", content.links)
+                with col2:
+                    st.metric("Images", content.images)
+                with col3:
+                    st.metric("Tables", content.tables)
+                with col4:
+                    st.metric("Lists", content.lists)
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">📄 Text Content Sample</h3>', unsafe_allow_html=True)
+                # Show first 1000 characters of text content
+                text_sample = content.text_content[:1000] + "..." if len(content.text_content) > 1000 else content.text_content
+                st.text_area("Content Preview", text_sample, height=200, disabled=True)
+            else:
+                st.info("Content analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
+        
+        with tabs[10]:  # Structure
+            st.markdown('<h2 class="section-header">🏗️ HTML Structure Analysis</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.static_result and st.session_state.static_result.structure_analysis:
+                structure = st.session_state.static_result.structure_analysis
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Elements", structure.total_elements)
+                with col2:
+                    st.metric("Semantic Elements", len(structure.semantic_elements))
+                with col3:
+                    st.metric("Nested Depth", structure.nested_depth)
+                with col4:
+                    st.metric("Proper Structure", "✅ Yes" if structure.has_proper_structure else "❌ No")
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">📊 Semantic Elements Found</h3>', unsafe_allow_html=True)
+                if structure.semantic_elements:
+                    for element in structure.semantic_elements:
+                        st.write(f"• `<{element}>`")
+                else:
+                    st.warning("No semantic HTML elements found. Consider using semantic tags like `<header>`, `<main>`, `<article>`, `<section>`, `<nav>`, `<footer>`.")
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">📋 Heading Hierarchy</h3>', unsafe_allow_html=True)
+                hierarchy = structure.heading_hierarchy
+                
+                if hierarchy.h1:
+                    st.write("**H1 Headings:**")
+                    for heading in hierarchy.h1:
+                        st.write(f"• {heading}")
+                
+                if hierarchy.h2:
+                    st.write("**H2 Headings:**")
+                    for heading in hierarchy.h2:
+                        st.write(f"• {heading}")
+                
+                if hierarchy.h3:
+                    st.write("**H3 Headings:**")
+                    for heading in hierarchy.h3:
+                        st.write(f"• {heading}")
+            else:
+                st.info("Structure analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
+        
+        with tabs[11]:  # Meta Data
+            st.markdown('<h2 class="section-header">🏷️ Meta Data Analysis</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.static_result and st.session_state.static_result.meta_analysis:
+                meta = st.session_state.static_result.meta_analysis
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Title", "✅ Present" if meta.title else "❌ Missing")
+                with col2:
+                    st.metric("Description", "✅ Present" if meta.description else "❌ Missing")
+                with col3:
+                    st.metric("Keywords", "✅ Present" if meta.keywords else "❌ Missing")
+                with col4:
+                    st.metric("Canonical URL", "✅ Present" if meta.canonical_url else "❌ Missing")
+                
+                st.markdown("---")
+                
+                if meta.title:
+                    st.markdown('<h3 class="sub-section-header">📝 Page Title</h3>', unsafe_allow_html=True)
+                    st.write(meta.title)
+                
+                if meta.description:
+                    st.markdown('<h3 class="sub-section-header">📄 Meta Description</h3>', unsafe_allow_html=True)
+                    st.write(meta.description)
+                
+                if meta.keywords:
+                    st.markdown('<h3 class="sub-section-header">🏷️ Keywords</h3>', unsafe_allow_html=True)
+                    st.write(meta.keywords)
+                
+                st.markdown("---")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("JSON-LD", "✅ Present" if meta.has_json_ld else "❌ Missing")
+                with col2:
+                    st.metric("Microdata", "✅ Present" if meta.has_microdata else "❌ Missing")
+                with col3:
+                    st.metric("RDFa", "✅ Present" if meta.has_rdfa else "❌ Missing")
+                
+                if meta.structured_data:
+                    st.markdown('<h3 class="sub-section-header">📊 Structured Data Found</h3>', unsafe_allow_html=True)
+                    for i, data in enumerate(meta.structured_data[:5]):  # Show first 5
+                        st.write(f"**{i+1}. {data.type.upper()}:**")
+                        st.json(data.data)
+                        st.markdown("---")
+                
+                if meta.open_graph_tags:
+                    st.markdown('<h3 class="sub-section-header">📱 Open Graph Tags</h3>', unsafe_allow_html=True)
+                    for key, value in meta.open_graph_tags.items():
+                        st.write(f"**{key}:** {value}")
+                
+                if meta.twitter_card_tags:
+                    st.markdown('<h3 class="sub-section-header">🐦 Twitter Card Tags</h3>', unsafe_allow_html=True)
+                    for key, value in meta.twitter_card_tags.items():
+                        st.write(f"**{key}:** {value}")
+            else:
+                st.info("Meta data analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
+        
+        with tabs[12]:  # JavaScript
+            st.markdown('<h2 class="section-header">⚡ JavaScript Analysis</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.static_result and st.session_state.static_result.javascript_analysis:
+                js = st.session_state.static_result.javascript_analysis
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Scripts", js.total_scripts)
+                with col2:
+                    st.metric("Inline Scripts", js.inline_scripts)
+                with col3:
+                    st.metric("External Scripts", js.external_scripts)
+                with col4:
+                    st.metric("SPA Detected", "✅ Yes" if js.is_spa else "❌ No")
+                
+                st.markdown("---")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("AJAX Present", "✅ Yes" if js.has_ajax else "❌ No")
+                with col2:
+                    st.metric("Dynamic Content", "✅ Yes" if js.dynamic_content_detected else "❌ No")
+                with col3:
+                    st.metric("Frameworks", len(js.frameworks))
+                
+                if js.frameworks:
+                    st.markdown('<h3 class="sub-section-header">🛠️ JavaScript Frameworks Detected</h3>', unsafe_allow_html=True)
+                    for framework in js.frameworks:
+                        with st.expander(f"**{framework.name}** (Confidence: {framework.confidence:.1%})"):
+                            st.write(f"**Indicators:**")
+                            for indicator in framework.indicators:
+                                st.write(f"• {indicator}")
+                
+                if js.is_spa:
+                    st.warning("⚠️ **Single Page Application (SPA) detected!** This may impact crawler accessibility as content is loaded dynamically.")
+                elif js.dynamic_content_detected:
+                    st.info("ℹ️ **Dynamic content detected.** Some content may not be accessible to basic crawlers.")
+                else:
+                    st.success("✅ **Static content detected.** Good for crawler accessibility!")
+            else:
+                st.info("JavaScript analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
+        
         # Add more tabs as needed...
         with tabs[13]:  # Recommendations
             st.markdown('<h2 class="section-header">💡 Optimization Recommendations</h2>', unsafe_allow_html=True)
@@ -885,6 +1308,177 @@ def main():
                     st.success("🎉 No significant recommendations found - your site is well-optimized!")
             else:
                 st.info("No comprehensive scoring analysis available. Run **'Comprehensive Analysis'** to see optimization recommendations.")
+        
+        with tabs[14]:  # Export Report
+            st.markdown('<h2 class="section-header">📥 Export Analysis Report</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.analysis_complete:
+                st.markdown('<h3 class="sub-section-header">📊 Available Export Options</h3>', unsafe_allow_html=True)
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**📄 Summary Report**")
+                    st.write("Quick overview with key metrics and recommendations")
+                    
+                    if st.button("📥 Download Summary Report", use_container_width=True):
+                        # Create a simple text summary
+                        summary_data = f"""
+Web Scraper & LLM Analysis Report
+================================
+
+URL: {st.session_state.analyzed_url}
+Analysis Type: {st.session_state.last_analysis_type}
+Analysis Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Duration: {st.session_state.analysis_duration:.2f} seconds
+
+OVERALL SCORES:
+"""
+                        if st.session_state.score:
+                            summary_data += f"""
+Scraper Friendliness: {st.session_state.score.scraper_friendliness.total_score:.1f}/100 ({st.session_state.score.scraper_friendliness.grade})
+LLM Accessibility: {st.session_state.score.llm_accessibility.total_score:.1f}/100 ({st.session_state.score.llm_accessibility.grade})
+"""
+                        
+                        if st.session_state.llm_report:
+                            summary_data += f"""
+LLM Analysis Score: {st.session_state.llm_report.overall_score:.1f}/100 ({st.session_state.llm_report.grade})
+"""
+                        
+                        summary_data += "\nKEY FINDINGS:\n"
+                        
+                        if st.session_state.static_result:
+                            content = st.session_state.static_result.content_analysis
+                            summary_data += f"• Content: {content.word_count:,} words, {content.character_count:,} characters\n"
+                            
+                            if st.session_state.static_result.javascript_analysis:
+                                js = st.session_state.static_result.javascript_analysis
+                                summary_data += f"• JavaScript: {js.total_scripts} scripts, SPA: {'Yes' if js.is_spa else 'No'}\n"
+                        
+                        if st.session_state.ssr_detection:
+                            summary_data += f"• SSR Detection: {'Yes' if st.session_state.ssr_detection.is_ssr else 'No'}\n"
+                        
+                        summary_data += "\nRECOMMENDATIONS:\n"
+                        if st.session_state.score and st.session_state.score.recommendations:
+                            for i, rec in enumerate(st.session_state.score.recommendations[:5], 1):
+                                summary_data += f"{i}. {rec.title}: {rec.description}\n"
+                        else:
+                            summary_data += "No specific recommendations available.\n"
+                        
+                        st.download_button(
+                            label="📥 Download Summary Report",
+                            data=summary_data,
+                            file_name=f"web_analysis_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+                
+                with col2:
+                    st.markdown("**📊 Detailed Data Export**")
+                    st.write("Complete analysis data in JSON format")
+                    
+                    if st.button("📥 Download Detailed Data", use_container_width=True):
+                        import json
+                        
+                        export_data = {
+                            "analysis_info": {
+                                "url": st.session_state.analyzed_url,
+                                "analysis_type": st.session_state.last_analysis_type,
+                                "timestamp": datetime.now().isoformat(),
+                                "duration": st.session_state.analysis_duration
+                            },
+                            "scores": {},
+                            "analysis_results": {}
+                        }
+                        
+                        if st.session_state.score:
+                            export_data["scores"] = {
+                                "scraper_friendliness": {
+                                    "score": st.session_state.score.scraper_friendliness.total_score,
+                                    "grade": st.session_state.score.scraper_friendliness.grade
+                                },
+                                "llm_accessibility": {
+                                    "score": st.session_state.score.llm_accessibility.total_score,
+                                    "grade": st.session_state.score.llm_accessibility.grade
+                                }
+                            }
+                        
+                        if st.session_state.llm_report:
+                            export_data["analysis_results"]["llm_report"] = {
+                                "overall_score": st.session_state.llm_report.overall_score,
+                                "grade": st.session_state.llm_report.grade,
+                                "limitations": st.session_state.llm_report.limitations,
+                                "recommendations": st.session_state.llm_report.recommendations
+                            }
+                        
+                        if st.session_state.static_result:
+                            export_data["analysis_results"]["static_analysis"] = {
+                                "content": {
+                                    "word_count": st.session_state.static_result.content_analysis.word_count,
+                                    "character_count": st.session_state.static_result.content_analysis.character_count,
+                                    "links": st.session_state.static_result.content_analysis.links,
+                                    "images": st.session_state.static_result.content_analysis.images
+                                },
+                                "structure": {
+                                    "total_elements": st.session_state.static_result.structure_analysis.total_elements,
+                                    "semantic_elements": st.session_state.static_result.structure_analysis.semantic_elements,
+                                    "has_proper_structure": st.session_state.static_result.structure_analysis.has_proper_structure
+                                },
+                                "javascript": {
+                                    "total_scripts": st.session_state.static_result.javascript_analysis.total_scripts,
+                                    "is_spa": st.session_state.static_result.javascript_analysis.is_spa,
+                                    "dynamic_content_detected": st.session_state.static_result.javascript_analysis.dynamic_content_detected
+                                }
+                            }
+                        
+                        json_data = json.dumps(export_data, indent=2, default=str)
+                        
+                        st.download_button(
+                            label="📥 Download Detailed Data",
+                            data=json_data,
+                            file_name=f"web_analysis_detailed_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json",
+                            use_container_width=True
+                        )
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">📋 Report Contents</h3>', unsafe_allow_html=True)
+                
+                report_sections = []
+                if st.session_state.score:
+                    report_sections.append("✅ Overall Scores & Grades")
+                if st.session_state.llm_report:
+                    report_sections.append("✅ LLM Accessibility Analysis")
+                if st.session_state.enhanced_llm_report:
+                    report_sections.append("✅ Enhanced LLM Analysis")
+                if st.session_state.static_result:
+                    report_sections.append("✅ Static Content Analysis")
+                if st.session_state.dynamic_result:
+                    report_sections.append("✅ Dynamic Content Analysis")
+                if st.session_state.comparison:
+                    report_sections.append("✅ Content Comparison")
+                if st.session_state.ssr_detection:
+                    report_sections.append("✅ SSR Detection")
+                if st.session_state.crawler_analysis:
+                    report_sections.append("✅ Crawler Testing Results")
+                if st.session_state.evidence_report:
+                    report_sections.append("✅ Evidence Report")
+                if st.session_state.llms_txt_analysis:
+                    report_sections.append("✅ LLMs.txt Analysis")
+                
+                if report_sections:
+                    st.write("**Included in this report:**")
+                    for section in report_sections:
+                        st.write(f"• {section}")
+                else:
+                    st.warning("No analysis data available for export.")
+                
+                st.markdown("---")
+                
+                st.info("💡 **Tip:** Use the Summary Report for quick sharing and the Detailed Data for further analysis or integration with other tools.")
+            else:
+                st.info("Please complete an analysis before attempting to export a report.")
     
     # Footer
     st.markdown("---")

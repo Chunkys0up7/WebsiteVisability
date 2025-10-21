@@ -72,7 +72,8 @@ class SeparateAnalyzer:
             static_result = static_analyzer.analyze(url)
             
             if static_result.status != "success":
-                raise Exception(f"Static analysis failed: {static_result.message}")
+                error_msg = static_result.error_message or "Unknown error"
+                raise Exception(f"Static analysis failed: {error_msg}")
             
             # Dynamic Analysis (optional)
             dynamic_result = None
@@ -135,7 +136,8 @@ class SeparateAnalyzer:
             static_result = static_analyzer.analyze(url)
             
             if static_result.status != "success":
-                raise Exception(f"Static analysis failed: {static_result.message}")
+                error_msg = static_result.error_message or "Unknown error"
+                raise Exception(f"Static analysis failed: {error_msg}")
             
             # LLM Accessibility Analysis
             llm_analyzer = LLMAccessibilityAnalyzer()
