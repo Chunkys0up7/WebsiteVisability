@@ -134,26 +134,55 @@ st.markdown("""
             color: #4a4a4a;
             margin-top: 0.5rem;
         }
-        /* Score card specific colors - High contrast */
+        /* Score card specific colors - High contrast with proper text colors */
         .score-card.excellent { 
             border-left-color: #059669; 
             background-color: #f0fdf4;
         }
+        .score-card.excellent .score-card-header,
+        .score-card.excellent .score-value,
+        .score-card.excellent .score-grade {
+            color: #065f46;
+        }
+        
         .score-card.good { 
             border-left-color: #2563eb; 
             background-color: #eff6ff;
         }
+        .score-card.good .score-card-header,
+        .score-card.good .score-value,
+        .score-card.good .score-grade {
+            color: #1e40af;
+        }
+        
         .score-card.fair { 
             border-left-color: #d97706; 
             background-color: #fffbeb;
         }
+        .score-card.fair .score-card-header,
+        .score-card.fair .score-value,
+        .score-card.fair .score-grade {
+            color: #92400e;
+        }
+        
         .score-card.poor { 
             border-left-color: #dc2626; 
             background-color: #fef2f2;
         }
+        .score-card.poor .score-card-header,
+        .score-card.poor .score-value,
+        .score-card.poor .score-grade {
+            color: #991b1b;
+        }
+        
         .score-card.neutral { 
             border-left-color: #6b7280; 
             background-color: #f9fafb;
+        }
+        .score-card.neutral .score-card-header,
+        .score-card.neutral .score-value,
+        .score-card.neutral .score-grade {
+            color: #374151;
         }
 
         /* Streamlit Tabs - Enhanced visibility */
@@ -311,6 +340,47 @@ st.markdown("""
             }
             .score-grade {
                 color: #cbd5e1;
+            }
+            /* Dark mode score card specific colors */
+            .score-card.excellent { 
+                background-color: #064e3b;
+            }
+            .score-card.excellent .score-card-header,
+            .score-card.excellent .score-value,
+            .score-card.excellent .score-grade {
+                color: #a7f3d0;
+            }
+            .score-card.good { 
+                background-color: #1e3a8a;
+            }
+            .score-card.good .score-card-header,
+            .score-card.good .score-value,
+            .score-card.good .score-grade {
+                color: #93c5fd;
+            }
+            .score-card.fair { 
+                background-color: #78350f;
+            }
+            .score-card.fair .score-card-header,
+            .score-card.fair .score-value,
+            .score-card.fair .score-grade {
+                color: #fcd34d;
+            }
+            .score-card.poor { 
+                background-color: #7f1d1d;
+            }
+            .score-card.poor .score-card-header,
+            .score-card.poor .score-value,
+            .score-card.poor .score-grade {
+                color: #fca5a5;
+            }
+            .score-card.neutral { 
+                background-color: #374151;
+            }
+            .score-card.neutral .score-card-header,
+            .score-card.neutral .score-value,
+            .score-card.neutral .score-grade {
+                color: #d1d5db;
             }
             .stTabs [data-baseweb="tab-list"] {
                 background-color: #1e293b;
