@@ -418,14 +418,14 @@ def main():
                 
                 if success:
                     st.success("✅ Analysis complete!")
-                    st.balloons()
     
     # Display results
-    if st.session_state.analysis_complete and st.session_state.score:
+    if st.session_state.analysis_complete:
         st.markdown("---")
         
         # Quick Overview
-        score = st.session_state.score
+        if st.session_state.score:
+            score = st.session_state.score
         
         col1, col2, col3, col4 = st.columns(4)
         
@@ -466,6 +466,44 @@ def main():
                 recommendations_count,
                 delta=f"{critical_count} critical" if critical_count > 0 else "No critical issues"
             )
+        
+        else:
+            # Show analysis type specific overview when no score is available
+            st.subheader("📊 Analysis Overview")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.session_state.enhanced_llm_report:
+                    st.metric(
+                        "Enhanced LLM Score",
+                        f"{st.session_state.enhanced_llm_report.overall_score:.1f}/100",
+                        delta=f"Grade: {st.session_state.enhanced_llm_report.grade}"
+                    )
+                elif st.session_state.llm_report:
+                    st.metric(
+                        "LLM Accessibility Score",
+                        f"{st.session_state.llm_report.overall_score:.1f}/100",
+                        delta=f"Grade: {st.session_state.llm_report.grade}"
+                    )
+            
+            with col2:
+                if st.session_state.ssr_detection:
+                    ssr_status = "✅ SSR Detected" if st.session_state.ssr_detection.is_ssr else "❌ No SSR"
+                    st.metric(
+                        "SSR Status",
+                        ssr_status,
+                        delta=f"Confidence: {st.session_state.ssr_detection.confidence:.1%}"
+                    )
+            
+            with col3:
+                if st.session_state.static_result and st.session_state.static_result.content_analysis:
+                    word_count = st.session_state.static_result.content_analysis.word_count
+                    st.metric(
+                        "Content Size",
+                        f"{word_count:,} words",
+                        delta=f"{st.session_state.static_result.content_analysis.character_count:,} chars"
+                    )
         
         st.markdown("---")
         
