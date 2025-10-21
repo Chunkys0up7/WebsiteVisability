@@ -41,170 +41,294 @@ st.set_page_config(
 
 # Custom CSS for better styling
 st.markdown("""
-<style>
-    /* General Streamlit Overrides */
-    .stApp {
-        background-color: #f8f9fa;
-        color: #333;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
+    <style>
+        /* General Streamlit Overrides */
+        .stApp {
+            background-color: #ffffff;
+            color: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+        }
 
-    /* Fix for responsive layout */
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
+        /* Fix for responsive layout */
+        .main .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
 
-    /* Main Header */
-    .main-header {
-        font-size: 3.2rem;
-        font-weight: bold;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.5rem;
-        padding-top: 1rem;
-        line-height: 1.2;
-        text-align: center;
-    }
-    .subtitle {
-        font-size: 1.25rem;
-        color: #555;
-        margin-bottom: 2.5rem;
-        text-align: center;
-    }
-
-    /* Section Headers */
-    .section-header {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #4A90E2;
-        border-bottom: 2px solid #e0e0e0;
-        padding-bottom: 0.8rem;
-        margin-top: 3rem;
-        margin-bottom: 2rem;
-    }
-    .sub-section-header {
-        font-size: 1.6rem;
-        font-weight: bold;
-        color: #333;
-        margin-top: 1.5rem;
-        margin-bottom: 1rem;
-    }
-
-    /* Score Cards */
-    .score-card {
-        background-color: #ffffff;
-        border-left: 5px solid;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        transition: transform 0.2s ease-in-out;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        min-height: 120px;
-    }
-    .score-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-    }
-    .score-card-header {
-        font-size: 1.1em;
-        font-weight: bold;
-        margin-bottom: 0.6rem;
-        color: #444;
-    }
-    .score-value {
-        font-size: 2.2em;
-        font-weight: bolder;
-        line-height: 1;
-        color: #222;
-        margin: 0.5rem 0;
-    }
-    .score-grade {
-        font-size: 1em;
-        color: #666;
-        margin-top: 0.5rem;
-    }
-    /* Score card specific colors */
-    .score-card.excellent { border-left-color: #10b981; }
-    .score-card.good { border-left-color: #3b82f6; }
-    .score-card.fair { border-left-color: #f59e0b; }
-    .score-card.poor { border-left-color: #ef4444; }
-    .score-card.neutral { border-left-color: #95a5a6; }
-
-    /* Streamlit Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        justify-content: center;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-    }
-    .stTabs [data-baseweb="tab"] {
-        padding-right: 25px;
-        padding-left: 25px;
-        font-size: 1.05rem;
-        font-weight: 500;
-        color: #666;
-        transition: color 0.2s ease-in-out, border-bottom 0.2s ease-in-out;
-        white-space: nowrap;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        color: #667eea;
-    }
-    .stTabs [aria-selected="true"] {
-        color: #764ba2;
-        border-bottom: 3px solid #764ba2;
-    }
-
-    /* Responsive columns */
-    @media (max-width: 768px) {
+        /* Main Header - High contrast, no gradient */
         .main-header {
-            font-size: 2.5rem;
+            font-size: 3.2rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin-bottom: 0.5rem;
+            padding-top: 1rem;
+            line-height: 1.2;
+            text-align: center;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         .subtitle {
-            font-size: 1.1rem;
+            font-size: 1.25rem;
+            color: #4a4a4a;
+            margin-bottom: 2.5rem;
+            text-align: center;
+            font-weight: 400;
         }
+
+        /* Section Headers - High contrast */
         .section-header {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 0.8rem;
+            margin-top: 3rem;
+            margin-bottom: 2rem;
+        }
+        .sub-section-header {
             font-size: 1.6rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Score Cards - Enhanced contrast */
+        .score-card {
+            background-color: #ffffff;
+            border-left: 6px solid;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 120px;
+            border: 1px solid #e5e7eb;
+        }
+        .score-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        .score-card-header {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 0.6rem;
+            color: #1a1a1a;
         }
         .score-value {
-            font-size: 1.8em;
+            font-size: 2.2em;
+            font-weight: 800;
+            line-height: 1;
+            color: #1a1a1a;
+            margin: 0.5rem 0;
         }
-    }
+        .score-grade {
+            font-size: 1em;
+            font-weight: 500;
+            color: #4a4a4a;
+            margin-top: 0.5rem;
+        }
+        /* Score card specific colors - High contrast */
+        .score-card.excellent { 
+            border-left-color: #059669; 
+            background-color: #f0fdf4;
+        }
+        .score-card.good { 
+            border-left-color: #2563eb; 
+            background-color: #eff6ff;
+        }
+        .score-card.fair { 
+            border-left-color: #d97706; 
+            background-color: #fffbeb;
+        }
+        .score-card.poor { 
+            border-left-color: #dc2626; 
+            background-color: #fef2f2;
+        }
+        .score-card.neutral { 
+            border-left-color: #6b7280; 
+            background-color: #f9fafb;
+        }
 
-    /* Sidebar improvements */
-    .css-1d391kg {
-        background-color: #ffffff;
-        border-right: 1px solid #e0e0e0;
-    }
+        /* Streamlit Tabs - Enhanced visibility */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            background-color: #f8fafc;
+            padding: 8px;
+            border-radius: 12px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #4a4a4a;
+            transition: all 0.2s ease-in-out;
+            white-space: nowrap;
+            border-radius: 8px;
+            background-color: transparent;
+        }
+        .stTabs [data-baseweb="tab"]:hover {
+            color: #1a1a1a;
+            background-color: #e5e7eb;
+        }
+        .stTabs [aria-selected="true"] {
+            color: #1a1a1a;
+            background-color: #ffffff;
+            border-bottom: 3px solid #2563eb;
+            font-weight: 600;
+        }
 
-    /* Button improvements */
-    .stButton > button {
-        border-radius: 8px;
-        transition: all 0.2s ease-in-out;
-    }
-    .stButton > button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
+        /* Responsive columns */
+        @media (max-width: 768px) {
+            .main-header {
+                font-size: 2.5rem;
+            }
+            .subtitle {
+                font-size: 1.1rem;
+            }
+            .section-header {
+                font-size: 1.6rem;
+            }
+            .score-value {
+                font-size: 1.8em;
+            }
+            .stTabs [data-baseweb="tab"] {
+                padding: 8px 16px;
+                font-size: 0.9rem;
+            }
+        }
 
-    /* Status improvements */
-    .stStatus {
-        border-radius: 8px;
-    }
+        /* Sidebar improvements - High contrast */
+        .css-1d391kg {
+            background-color: #ffffff;
+            border-right: 2px solid #e5e7eb;
+        }
 
-    /* Progress bar improvements */
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    }
-</style>
+        /* Button improvements - Enhanced visibility */
+        .stButton > button {
+            border-radius: 8px;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+            border: 1px solid #d1d5db;
+        }
+        .stButton > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-color: #2563eb;
+        }
+
+        /* Status improvements */
+        .stStatus {
+            border-radius: 8px;
+        }
+
+        /* Progress bar improvements - High contrast */
+        .stProgress > div > div > div > div {
+            background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        /* Text improvements for better readability */
+        .stMarkdown {
+            color: #1a1a1a;
+        }
+        
+        /* Metric improvements */
+        .metric-container {
+            background-color: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        /* Info boxes improvements */
+        .stInfo {
+            background-color: #eff6ff;
+            border-left: 4px solid #2563eb;
+        }
+        .stSuccess {
+            background-color: #f0fdf4;
+            border-left: 4px solid #059669;
+        }
+        .stWarning {
+            background-color: #fffbeb;
+            border-left: 4px solid #d97706;
+        }
+        .stError {
+            background-color: #fef2f2;
+            border-left: 4px solid #dc2626;
+        }
+
+        /* Expander improvements */
+        .streamlit-expanderHeader {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        /* Code blocks */
+        .stCode {
+            background-color: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .stApp {
+                background-color: #0f172a;
+                color: #f1f5f9;
+            }
+            .main-header {
+                color: #f1f5f9;
+            }
+            .subtitle {
+                color: #cbd5e1;
+            }
+            .section-header {
+                color: #f1f5f9;
+                border-bottom-color: #3b82f6;
+            }
+            .sub-section-header {
+                color: #f1f5f9;
+            }
+            .score-card {
+                background-color: #1e293b;
+                border-color: #334155;
+            }
+            .score-card-header {
+                color: #f1f5f9;
+            }
+            .score-value {
+                color: #f1f5f9;
+            }
+            .score-grade {
+                color: #cbd5e1;
+            }
+            .stTabs [data-baseweb="tab-list"] {
+                background-color: #1e293b;
+            }
+            .stTabs [data-baseweb="tab"] {
+                color: #cbd5e1;
+            }
+            .stTabs [data-baseweb="tab"]:hover {
+                color: #f1f5f9;
+                background-color: #334155;
+            }
+            .stTabs [aria-selected="true"] {
+                color: #f1f5f9;
+                background-color: #0f172a;
+                border-bottom-color: #3b82f6;
+            }
+        }
+    </style>
 """, unsafe_allow_html=True)
 
 def initialize_session_state():
