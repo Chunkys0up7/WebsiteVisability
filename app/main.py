@@ -424,136 +424,89 @@ def main():
                     st.markdown("---")
                     st.subheader("📥 Download Comprehensive Report")
                     
+                    # Create report data once
+                    report_data = ReportData(
+                        url=st.session_state.analyzed_url,
+                        analysis_type=analysis_type,
+                        timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        analysis_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                        static_result=st.session_state.static_result,
+                        dynamic_result=st.session_state.dynamic_result,
+                        comparison=st.session_state.comparison,
+                        score=st.session_state.score,
+                        llm_report=st.session_state.llm_report,
+                        enhanced_llm_report=st.session_state.enhanced_llm_report,
+                        llms_txt_analysis=st.session_state.llms_txt_analysis,
+                        ssr_detection=st.session_state.ssr_detection,
+                        crawler_analysis=st.session_state.crawler_analysis,
+                        evidence_report=st.session_state.evidence_report,
+                        analysis_duration=0.0,
+                        user_agent="Web Scraper & LLM Analyzer",
+                        analysis_notes=f"Analysis type: {analysis_type}"
+                    )
+                    
+                    report_generator = ComprehensiveReportGenerator()
+                    
                     col1, col2, col3, col4 = st.columns(4)
                     
                     with col1:
-                        if st.button("📄 HTML Report", help="Download comprehensive HTML report with charts"):
-                            try:
-                                report_data = ReportData(
-                                    url=st.session_state.analyzed_url,
-                                    analysis_type=analysis_type,
-                                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                    analysis_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                                    static_result=st.session_state.static_result,
-                                    dynamic_result=st.session_state.dynamic_result,
-                                    comparison=st.session_state.comparison,
-                                    score=st.session_state.score,
-                                    llm_report=st.session_state.llm_report,
-                                    enhanced_llm_report=st.session_state.enhanced_llm_report,
-                                    llms_txt_analysis=st.session_state.llms_txt_analysis,
-                                    ssr_detection=st.session_state.ssr_detection,
-                                    crawler_analysis=st.session_state.crawler_analysis,
-                                    evidence_report=st.session_state.evidence_report,
-                                    analysis_duration=0.0,
-                                    user_agent="Web Scraper & LLM Analyzer",
-                                    analysis_notes=f"Analysis type: {analysis_type}"
-                                )
-                                
-                                report_generator = ComprehensiveReportGenerator()
-                                html_report = report_generator.generate_report(report_data, 'html')
-                                
-                                st.download_button(
-                                    label="📄 Download HTML Report",
-                                    data=html_report,
-                                    file_name=f"web_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
-                                    mime="text/html",
-                                    help="Download comprehensive HTML report with charts and visualizations"
-                                )
-                            except Exception as e:
-                                st.error(f"Error generating HTML report: {str(e)}")
+                        try:
+                            html_report = report_generator.generate_report(report_data, 'html')
+                            st.download_button(
+                                label="📄 HTML Report",
+                                data=html_report,
+                                file_name=f"web_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                                mime="text/html",
+                                help="Download comprehensive HTML report with charts and visualizations"
+                            )
+                        except Exception as e:
+                            st.error(f"Error generating HTML report: {str(e)}")
                     
                     with col2:
-                        if st.button("📋 Markdown Report", help="Download Markdown report"):
-                            try:
-                                report_data = ReportData(
-                                    url=st.session_state.analyzed_url,
-                                    analysis_type=analysis_type,
-                                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                    analysis_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                                    static_result=st.session_state.static_result,
-                                    dynamic_result=st.session_state.dynamic_result,
-                                    comparison=st.session_state.comparison,
-                                    score=st.session_state.score,
-                                    llm_report=st.session_state.llm_report,
-                                    enhanced_llm_report=st.session_state.enhanced_llm_report,
-                                    llms_txt_analysis=st.session_state.llms_txt_analysis,
-                                    ssr_detection=st.session_state.ssr_detection,
-                                    crawler_analysis=st.session_state.crawler_analysis,
-                                    evidence_report=st.session_state.evidence_report,
-                                    analysis_duration=0.0,
-                                    user_agent="Web Scraper & LLM Analyzer",
-                                    analysis_notes=f"Analysis type: {analysis_type}"
-                                )
-                                
-                                report_generator = ComprehensiveReportGenerator()
-                                markdown_report = report_generator.generate_report(report_data, 'markdown')
-                                
-                                st.download_button(
-                                    label="📋 Download Markdown Report",
-                                    data=markdown_report,
-                                    file_name=f"web_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                                    mime="text/markdown",
-                                    help="Download Markdown report for documentation"
-                                )
-                            except Exception as e:
-                                st.error(f"Error generating Markdown report: {str(e)}")
+                        try:
+                            markdown_report = report_generator.generate_report(report_data, 'markdown')
+                            st.download_button(
+                                label="📋 Markdown Report",
+                                data=markdown_report,
+                                file_name=f"web_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                                mime="text/markdown",
+                                help="Download Markdown report for documentation"
+                            )
+                        except Exception as e:
+                            st.error(f"Error generating Markdown report: {str(e)}")
                     
                     with col3:
-                        if st.button("📊 JSON Data", help="Download raw JSON data"):
-                            try:
-                                report_data = ReportData(
-                                    url=st.session_state.analyzed_url,
-                                    analysis_type=analysis_type,
-                                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                    analysis_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                                    static_result=st.session_state.static_result,
-                                    dynamic_result=st.session_state.dynamic_result,
-                                    comparison=st.session_state.comparison,
-                                    score=st.session_state.score,
-                                    llm_report=st.session_state.llm_report,
-                                    enhanced_llm_report=st.session_state.enhanced_llm_report,
-                                    llms_txt_analysis=st.session_state.llms_txt_analysis,
-                                    ssr_detection=st.session_state.ssr_detection,
-                                    crawler_analysis=st.session_state.crawler_analysis,
-                                    evidence_report=st.session_state.evidence_report,
-                                    analysis_duration=0.0,
-                                    user_agent="Web Scraper & LLM Analyzer",
-                                    analysis_notes=f"Analysis type: {analysis_type}"
-                                )
-                                
-                                report_generator = ComprehensiveReportGenerator()
-                                json_report = report_generator.generate_report(report_data, 'json')
-                                
-                                st.download_button(
-                                    label="📊 Download JSON Data",
-                                    data=json_report,
-                                    file_name=f"web_analysis_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                                    mime="application/json",
-                                    help="Download raw analysis data in JSON format"
-                                )
-                            except Exception as e:
-                                st.error(f"Error generating JSON report: {str(e)}")
+                        try:
+                            json_report = report_generator.generate_report(report_data, 'json')
+                            st.download_button(
+                                label="📊 JSON Data",
+                                data=json_report,
+                                file_name=f"web_analysis_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                                mime="application/json",
+                                help="Download raw analysis data in JSON format"
+                            )
+                        except Exception as e:
+                            st.error(f"Error generating JSON report: {str(e)}")
                     
                     with col4:
-                        if st.button("📈 Evidence Report", help="Download evidence report"):
-                            try:
-                                if st.session_state.evidence_report:
-                                    evidence_capture = EvidenceCapture()
-                                    evidence_html = evidence_capture.export_evidence_report(
-                                        st.session_state.evidence_report.analysis_id, 'html'
-                                    )
-                                    
-                                    st.download_button(
-                                        label="📈 Download Evidence Report",
-                                        data=evidence_html,
-                                        file_name=f"evidence_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
-                                        mime="text/html",
-                                        help="Download detailed evidence report"
-                                    )
-                                else:
-                                    st.warning("No evidence report available")
-                            except Exception as e:
-                                st.error(f"Error generating evidence report: {str(e)}")
+                        try:
+                            if st.session_state.evidence_report:
+                                evidence_capture = EvidenceCapture()
+                                evidence_html = evidence_capture.export_evidence_report(
+                                    st.session_state.evidence_report.analysis_id, 'html'
+                                )
+                                
+                                st.download_button(
+                                    label="📈 Evidence Report",
+                                    data=evidence_html,
+                                    file_name=f"evidence_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                                    mime="text/html",
+                                    help="Download detailed evidence report"
+                                )
+                            else:
+                                st.info("No evidence report available")
+                        except Exception as e:
+                            st.error(f"Error generating evidence report: {str(e)}")
                     
                     st.markdown("---")
     
@@ -1401,77 +1354,136 @@ def main():
             if st.session_state.evidence_report:
                 report = st.session_state.evidence_report
                 
-                # Report Header
-                st.subheader("📋 Report Summary")
-                col1, col2, col3 = st.columns(3)
+                # Clean summary section
+                st.subheader("📋 Analysis Summary")
+                
+                # Create a cleaner layout with cards
+                col1, col2 = st.columns([2, 1])
+                
                 with col1:
-                    st.metric("Analysis ID", report.analysis_id)
+                    st.markdown(f"""
+                    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px; margin-bottom: 1rem;">
+                        <h4 style="color: #2c3e50; margin-bottom: 1rem;">📊 Analysis Overview</h4>
+                        <p><strong>Analysis ID:</strong> <code>{report.analysis_id}</code></p>
+                        <p><strong>Crawlers Tested:</strong> {report.summary['total_crawlers']}</p>
+                        <p><strong>Total Issues Found:</strong> {report.summary['total_issues']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
                 with col2:
-                    st.metric("Crawlers Tested", report.summary['total_crawlers'])
-                with col3:
-                    st.metric("Total Issues", report.summary['total_issues'])
+                    # Issue breakdown with better visual design
+                    st.markdown(f"""
+                    <div style="background: #fff; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #e74c3c;">
+                        <h4 style="color: #2c3e50; margin-bottom: 1rem;">🚨 Issue Priority</h4>
+                        <div style="margin-bottom: 0.5rem;">
+                            <span style="color: #e74c3c; font-weight: bold;">Critical:</span> {report.summary['critical_issues']}
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <span style="color: #f39c12; font-weight: bold;">High:</span> {report.summary['high_issues']}
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <span style="color: #f1c40f; font-weight: bold;">Medium:</span> {report.summary['medium_issues']}
+                        </div>
+                        <div>
+                            <span style="color: #27ae60; font-weight: bold;">Low:</span> {report.summary['low_issues']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
-                # Issue Breakdown
-                st.subheader("📊 Issue Breakdown")
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Critical", report.summary['critical_issues'], delta="🔴")
-                with col2:
-                    st.metric("High", report.summary['high_issues'], delta="🟠")
-                with col3:
-                    st.metric("Medium", report.summary['medium_issues'], delta="🟡")
-                with col4:
-                    st.metric("Low", report.summary['low_issues'], delta="🟢")
+                # Detailed evidence section
+                st.subheader("🔍 Detailed Evidence")
                 
-                # Export Options
-                st.subheader("📤 Export Report")
+                if report.crawler_comparisons:
+                    for crawler_name, evidence in report.crawler_comparisons.items():
+                        with st.expander(f"🤖 {evidence.crawler_type} Analysis", expanded=False):
+                            col1, col2 = st.columns([1, 2])
+                            
+                            with col1:
+                                st.metric("Accessibility Score", f"{evidence.accessibility_score:.1f}/100")
+                                st.metric("Issues Found", len(evidence.accessibility_issues))
+                            
+                            with col2:
+                                if evidence.accessibility_issues:
+                                    st.write("**Issues Identified:**")
+                                    for issue in evidence.accessibility_issues[:5]:  # Show first 5 issues
+                                        st.write(f"• {issue}")
+                                    if len(evidence.accessibility_issues) > 5:
+                                        st.write(f"... and {len(evidence.accessibility_issues) - 5} more issues")
+                                else:
+                                    st.success("No issues found!")
+                
+                # Recommendations section
+                if report.recommendations:
+                    st.subheader("💡 Key Recommendations")
+                    
+                    # Group recommendations by priority
+                    critical_recs = [r for r in report.recommendations if 'CRITICAL' in r]
+                    high_recs = [r for r in report.recommendations if 'HIGH' in r and r not in critical_recs]
+                    other_recs = [r for r in report.recommendations if r not in critical_recs + high_recs]
+                    
+                    if critical_recs:
+                        st.error("🚨 **Critical Issues**")
+                        for rec in critical_recs[:3]:  # Show top 3 critical
+                            st.write(f"• {rec}")
+                    
+                    if high_recs:
+                        st.warning("⚠️ **High Priority**")
+                        for rec in high_recs[:3]:  # Show top 3 high priority
+                            st.write(f"• {rec}")
+                    
+                    if other_recs:
+                        st.info("📋 **Other Recommendations**")
+                        for rec in other_recs[:3]:  # Show top 3 other
+                            st.write(f"• {rec}")
+                
+                # Export section - simplified
+                st.subheader("📤 Export Evidence Report")
+                
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    if st.button("📄 Export JSON"):
+                    try:
                         evidence_capture = EvidenceCapture()
                         json_report = evidence_capture.export_evidence_report(report.analysis_id, 'json')
                         st.download_button(
-                            label="Download JSON",
+                            label="📄 Download JSON",
                             data=json_report,
                             file_name=f"evidence_report_{report.analysis_id}.json",
-                            mime="application/json"
+                            mime="application/json",
+                            help="Download evidence data in JSON format"
                         )
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
                 
                 with col2:
-                    if st.button("📄 Export HTML"):
+                    try:
                         evidence_capture = EvidenceCapture()
                         html_report = evidence_capture.export_evidence_report(report.analysis_id, 'html')
                         st.download_button(
-                            label="Download HTML",
+                            label="📄 Download HTML",
                             data=html_report,
                             file_name=f"evidence_report_{report.analysis_id}.html",
-                            mime="text/html"
+                            mime="text/html",
+                            help="Download evidence report in HTML format"
                         )
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
                 
                 with col3:
-                    if st.button("📄 Export Markdown"):
+                    try:
                         evidence_capture = EvidenceCapture()
                         md_report = evidence_capture.export_evidence_report(report.analysis_id, 'markdown')
                         st.download_button(
-                            label="Download Markdown",
+                            label="📄 Download Markdown",
                             data=md_report,
                             file_name=f"evidence_report_{report.analysis_id}.md",
-                            mime="text/markdown"
+                            mime="text/markdown",
+                            help="Download evidence report in Markdown format"
                         )
-                
-                # Comprehensive Recommendations
-                if report.recommendations:
-                    st.subheader("💡 Comprehensive Recommendations")
-                    for rec in report.recommendations:
-                        if 'CRITICAL' in rec:
-                            st.error(rec)
-                        elif 'HIGH' in rec:
-                            st.warning(rec)
-                        else:
-                            st.info(rec)
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
             else:
-                st.warning("Evidence report not available. Please run analysis with 'Capture Evidence' enabled.")
+                st.info("📋 No evidence report available. Run analysis with 'Capture Evidence' enabled to see detailed evidence.")
         
         with tabs[8]:  # Content
             st.header("Content Analysis")
