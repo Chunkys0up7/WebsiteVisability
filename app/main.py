@@ -527,19 +527,20 @@ def main():
         with tabs[0]:  # Overview
             st.header("Analysis Overview")
             
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("🎯 Scraper Friendliness Breakdown")
+            if st.session_state.score:
+                col1, col2 = st.columns(2)
                 
-                components = [
-                    score.scraper_friendliness.static_content_quality,
-                    score.scraper_friendliness.semantic_html_structure,
-                    score.scraper_friendliness.structured_data_implementation,
-                    score.scraper_friendliness.meta_tag_completeness,
-                    score.scraper_friendliness.javascript_dependency,
-                    score.scraper_friendliness.crawler_accessibility
-                ]
+                with col1:
+                    st.subheader("🎯 Scraper Friendliness Breakdown")
+                    
+                    components = [
+                        st.session_state.score.scraper_friendliness.static_content_quality,
+                        st.session_state.score.scraper_friendliness.semantic_html_structure,
+                        st.session_state.score.scraper_friendliness.structured_data_implementation,
+                        st.session_state.score.scraper_friendliness.meta_tag_completeness,
+                        st.session_state.score.scraper_friendliness.javascript_dependency,
+                        st.session_state.score.scraper_friendliness.crawler_accessibility
+                    ]
                 
                 for comp in components:
                     score_class = get_score_color_class(comp.percentage)
@@ -576,6 +577,43 @@ def main():
                 for comp in llm_components:
                     st.markdown(f"**{comp.name}**: {comp.score:.1f}/{comp.max_score:.0f} ({comp.percentage:.0f}%)")
                     st.progress(comp.percentage / 100)
+            else:
+                # Show analysis-specific overview when no score is available
+                st.subheader("📊 Analysis Results")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    if st.session_state.enhanced_llm_report:
+                        st.metric(
+                            "Enhanced LLM Score",
+                            f"{st.session_state.enhanced_llm_report.overall_score:.1f}/100",
+                            delta=f"Grade: {st.session_state.enhanced_llm_report.grade}"
+                        )
+                    elif st.session_state.llm_report:
+                        st.metric(
+                            "LLM Accessibility Score",
+                            f"{st.session_state.llm_report.overall_score:.1f}/100",
+                            delta=f"Grade: {st.session_state.llm_report.grade}"
+                        )
+                
+                with col2:
+                    if st.session_state.ssr_detection:
+                        ssr_status = "✅ SSR Detected" if st.session_state.ssr_detection.is_ssr else "❌ No SSR"
+                        st.metric(
+                            "SSR Status",
+                            ssr_status,
+                            delta=f"Confidence: {st.session_state.ssr_detection.confidence:.1%}"
+                        )
+                
+                with col3:
+                    if st.session_state.static_result and st.session_state.static_result.content_analysis:
+                        word_count = st.session_state.static_result.content_analysis.word_count
+                        st.metric(
+                            "Content Size",
+                            f"{word_count:,} words",
+                            delta=f"{st.session_state.static_result.content_analysis.character_count:,} chars"
+                        )
         
         with tabs[1]:  # LLM Analysis
             st.header("🤖 LLM Accessibility Analysis")
