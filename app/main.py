@@ -430,8 +430,8 @@ def main():
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                scraper_score = score.scraper_friendliness.total_score
-                scraper_grade = score.scraper_friendliness.grade
+                scraper_score = st.session_state.score.scraper_friendliness.total_score
+                scraper_grade = st.session_state.score.scraper_friendliness.grade
                 score_class = get_score_color_class(scraper_score)
                 st.metric(
                     "Scraper Friendliness",
@@ -440,8 +440,8 @@ def main():
                 )
         
             with col2:
-                llm_score = score.llm_accessibility.total_score
-                llm_grade = score.llm_accessibility.grade
+                llm_score = st.session_state.score.llm_accessibility.total_score
+                llm_grade = st.session_state.score.llm_accessibility.grade
                 score_class = get_score_color_class(llm_score)
                 st.metric(
                     "LLM Accessibility",
@@ -459,8 +459,8 @@ def main():
                     )
         
             with col4:
-                recommendations_count = len(score.recommendations)
-                critical_count = len([r for r in score.recommendations if r.priority.value == "critical"])
+                recommendations_count = len(st.session_state.score.recommendations)
+                critical_count = len([r for r in st.session_state.score.recommendations if r.priority.value == "critical"])
                 st.metric(
                     "Recommendations",
                     recommendations_count,
@@ -558,25 +558,25 @@ def main():
                                 st.markdown(f"- {issue}")
                     
                     st.markdown("---")
-            
-            with col2:
-                st.subheader("🤖 LLM Accessibility Breakdown")
                 
-                st.info("""
-                LLM scoring emphasizes content quality and semantic structure over
-                JavaScript dependency, as LLMs can use dynamic rendering.
-                """)
-                
-                llm_components = [
-                    score.llm_accessibility.static_content_quality,
-                    score.llm_accessibility.semantic_html_structure,
-                    score.llm_accessibility.structured_data_implementation,
-                    score.llm_accessibility.meta_tag_completeness
-                ]
-                
-                for comp in llm_components:
-                    st.markdown(f"**{comp.name}**: {comp.score:.1f}/{comp.max_score:.0f} ({comp.percentage:.0f}%)")
-                    st.progress(comp.percentage / 100)
+                with col2:
+                    st.subheader("🤖 LLM Accessibility Breakdown")
+                    
+                    st.info("""
+                    LLM scoring emphasizes content quality and semantic structure over
+                    JavaScript dependency, as LLMs can use dynamic rendering.
+                    """)
+                    
+                    llm_components = [
+                        st.session_state.score.llm_accessibility.static_content_quality,
+                        st.session_state.score.llm_accessibility.semantic_html_structure,
+                        st.session_state.score.llm_accessibility.structured_data_implementation,
+                        st.session_state.score.llm_accessibility.meta_tag_completeness
+                    ]
+                    
+                    for comp in llm_components:
+                        st.markdown(f"**{comp.name}**: {comp.score:.1f}/{comp.max_score:.0f} ({comp.percentage:.0f}%)")
+                        st.progress(comp.percentage / 100)
             else:
                 # Show analysis-specific overview when no score is available
                 st.subheader("📊 Analysis Results")
@@ -1058,12 +1058,12 @@ def main():
                 # Scraper-specific metrics
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Scraper Friendliness", f"{score.scraper_friendliness.total_score:.1f}/100", 
-                             delta=f"Grade: {score.scraper_friendliness.grade}")
+                    st.metric("Scraper Friendliness", f"{st.session_state.score.scraper_friendliness.total_score:.1f}/100", 
+                             delta=f"Grade: {st.session_state.score.scraper_friendliness.grade}")
                 with col2:
-                    st.metric("Static Content Quality", f"{score.scraper_friendliness.static_content_quality.score:.1f}/25")
+                    st.metric("Static Content Quality", f"{st.session_state.score.scraper_friendliness.static_content_quality.score:.1f}/25")
                 with col3:
-                    st.metric("Semantic HTML", f"{score.scraper_friendliness.semantic_html_structure.score:.1f}/20")
+                    st.metric("Semantic HTML", f"{st.session_state.score.scraper_friendliness.semantic_html_structure.score:.1f}/20")
                 
                 st.markdown("---")
                 
@@ -1071,12 +1071,12 @@ def main():
                 st.subheader("🎯 Scraper Friendliness Breakdown")
                 
                 scraper_components = [
-                    score.scraper_friendliness.static_content_quality,
-                    score.scraper_friendliness.semantic_html_structure,
-                    score.scraper_friendliness.structured_data_implementation,
-                    score.scraper_friendliness.meta_tag_completeness,
-                    score.scraper_friendliness.javascript_dependency,
-                    score.scraper_friendliness.crawler_accessibility
+                    st.session_state.score.scraper_friendliness.static_content_quality,
+                    st.session_state.score.scraper_friendliness.semantic_html_structure,
+                    st.session_state.score.scraper_friendliness.structured_data_implementation,
+                    st.session_state.score.scraper_friendliness.meta_tag_completeness,
+                    st.session_state.score.scraper_friendliness.javascript_dependency,
+                    st.session_state.score.scraper_friendliness.crawler_accessibility
                 ]
                 
                 for comp in scraper_components:
@@ -1099,7 +1099,7 @@ def main():
                 # Scraper-specific recommendations
                 st.subheader("💡 Scraper Optimization Recommendations")
                 
-                scraper_recommendations = [r for r in score.recommendations 
+                scraper_recommendations = [r for r in st.session_state.score.recommendations 
                                          if r.category in ["static_content", "semantic_html", "structured_data", "meta_tags", "crawler_accessibility"]]
                 
                 if scraper_recommendations:
@@ -1485,12 +1485,12 @@ def main():
         with tabs[12]:  # Recommendations
             st.header("💡 Optimization Recommendations")
             
-            if score.recommendations:
+            if st.session_state.score and st.session_state.score.recommendations:
                 # Group by priority
-                critical = [r for r in score.recommendations if r.priority.value == "critical"]
-                high = [r for r in score.recommendations if r.priority.value == "high"]
-                medium = [r for r in score.recommendations if r.priority.value == "medium"]
-                low = [r for r in score.recommendations if r.priority.value == "low"]
+                critical = [r for r in st.session_state.score.recommendations if r.priority.value == "critical"]
+                high = [r for r in st.session_state.score.recommendations if r.priority.value == "high"]
+                medium = [r for r in st.session_state.score.recommendations if r.priority.value == "medium"]
+                low = [r for r in st.session_state.score.recommendations if r.priority.value == "low"]
                 
                 if critical:
                     st.error(f"🚨 {len(critical)} Critical Issues")
@@ -1535,8 +1535,11 @@ def main():
                             st.markdown(f"**{rec.title}**")
                             st.markdown(rec.description)
                             st.markdown("---")
+                
+                if not (critical or high or medium or low):
+                    st.success("🎉 No recommendations - your site is perfectly optimized!")
             else:
-                st.success("🎉 No recommendations - your site is perfectly optimized!")
+                st.info("No scoring analysis available. Run 'Comprehensive Analysis' to see optimization recommendations.")
     
     # Footer
     st.markdown("---")
