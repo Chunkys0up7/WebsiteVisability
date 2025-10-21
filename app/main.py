@@ -355,6 +355,19 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 if st.session_state.crawler_analysis:
                     evidence_data.update(st.session_state.crawler_analysis)
                 if st.session_state.llm_report:
+                    # Convert LLM recommendations to priority-based issues for evidence report
+                    llm_issues = []
+                    if st.session_state.llm_report.recommendations:
+                        for rec in st.session_state.llm_report.recommendations:
+                            if rec.startswith("CRITICAL"):
+                                llm_issues.append(f"CRITICAL: {rec}")
+                            elif rec.startswith("HIGH"):
+                                llm_issues.append(f"HIGH: {rec}")
+                            elif rec.startswith("MEDIUM"):
+                                llm_issues.append(f"MEDIUM: {rec}")
+                            else:
+                                llm_issues.append(f"LOW: {rec}")
+                    
                     llm_evidence = type('obj', (object,), {
                         'crawler_name': 'LLM Analysis',
                         'crawler_type': 'LLM Analysis',
@@ -363,10 +376,17 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                         'content_inaccessible': {'javascript_dependent_content': {'available': False}},
                         'evidence': [f"LLM accessibility score: {st.session_state.llm_report.overall_score:.1f}"] if st.session_state.llm_report else [],
                         'recommendations': st.session_state.llm_report.recommendations if st.session_state.llm_report else [],
-                        'accessibility_issues': st.session_state.llm_report.limitations if st.session_state.llm_report else []
+                        'accessibility_issues': llm_issues
                     })()
                     evidence_data['llm_analysis'] = llm_evidence
                 if st.session_state.ssr_detection:
+                    # Convert SSR detection to priority-based issues for evidence report
+                    ssr_issues = []
+                    if not st.session_state.ssr_detection.is_ssr:
+                        ssr_issues.append("HIGH: SSR not detected - consider implementing server-side rendering for better LLM accessibility")
+                    else:
+                        ssr_issues.append("LOW: SSR detected - good for LLM accessibility")
+                    
                     ssr_evidence = type('obj', (object,), {
                         'crawler_name': 'SSR Detection',
                         'crawler_type': 'SSR Detection',
@@ -375,7 +395,7 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                         'content_inaccessible': {'rendering_type': st.session_state.ssr_detection.rendering_type},
                         'evidence': st.session_state.ssr_detection.evidence,
                         'recommendations': ['SSR detection completed'] if st.session_state.ssr_detection.is_ssr else ['Consider implementing SSR'],
-                        'accessibility_issues': ['SSR not detected'] if not st.session_state.ssr_detection.is_ssr else []
+                        'accessibility_issues': ssr_issues
                     })()
                     evidence_data['ssr_detection'] = ssr_evidence
                 
@@ -625,8 +645,24 @@ def main():
                 """, unsafe_allow_html=True)
         
         with col4:
-            recommendations_count = len(st.session_state.score.recommendations) if st.session_state.score else 0
-            critical_count = len([r for r in st.session_state.score.recommendations if r.priority.value == "critical"]) if st.session_state.score else 0
+            # Count recommendations from all sources for consistency
+            recommendations_count = 0
+            critical_count = 0
+            
+            # Count from scoring engine if available
+            if st.session_state.score and st.session_state.score.recommendations:
+                recommendations_count += len(st.session_state.score.recommendations)
+                critical_count += len([r for r in st.session_state.score.recommendations if r.priority.value == "critical"])
+            
+            # Count from LLM report if available
+            if st.session_state.llm_report and st.session_state.llm_report.recommendations:
+                recommendations_count += len(st.session_state.llm_report.recommendations)
+                critical_count += len([r for r in st.session_state.llm_report.recommendations if r.startswith("CRITICAL")])
+            
+            # Count from enhanced LLM report if available
+            if st.session_state.enhanced_llm_report and st.session_state.enhanced_llm_report.critical_recommendations:
+                recommendations_count += len(st.session_state.enhanced_llm_report.critical_recommendations)
+                critical_count += len(st.session_state.enhanced_llm_report.critical_recommendations)
             
             score_class = "poor" if critical_count > 0 else "excellent" if recommendations_count == 0 else "good"
             st.markdown(f"""
