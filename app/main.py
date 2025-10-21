@@ -270,7 +270,8 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                         'content_accessible': st.session_state.llm_report.accessible_content,
                         'content_inaccessible': st.session_state.llm_report.inaccessible_content,
                         'evidence': [f"LLM accessibility score: {st.session_state.llm_report.overall_score:.1f}"],
-                        'recommendations': st.session_state.llm_report.recommendations
+                        'recommendations': st.session_state.llm_report.recommendations,
+                        'accessibility_issues': st.session_state.llm_report.limitations
                     })()
                     evidence_data['llm_analysis'] = llm_evidence
                 
@@ -282,7 +283,8 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                         'content_accessible': {'ssr_detected': st.session_state.ssr_detection.is_ssr},
                         'content_inaccessible': {'rendering_type': st.session_state.ssr_detection.rendering_type},
                         'evidence': st.session_state.ssr_detection.evidence,
-                        'recommendations': ['SSR detection completed'] if st.session_state.ssr_detection.is_ssr else ['Consider implementing SSR']
+                        'recommendations': ['SSR detection completed'] if st.session_state.ssr_detection.is_ssr else ['Consider implementing SSR'],
+                        'accessibility_issues': ['SSR not detected'] if not st.session_state.ssr_detection.is_ssr else []
                     })()
                     evidence_data['ssr_detection'] = ssr_evidence
                 
