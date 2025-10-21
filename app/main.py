@@ -571,15 +571,12 @@ def main():
                 # Dynamic Analysis (Conditional & Explained)
                 analyze_dynamic = False # Default to False
                 if analysis_type == "Comprehensive Analysis":
-                    analyze_dynamic_disabled_reason = "Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Static analysis provides comprehensive LLM accessibility insights."
                     analyze_dynamic = st.checkbox(
                         "Include dynamic analysis (renders content with browser)",
-                        value=False,
-                        disabled=True, # Keeping original disabled state
-                        help=f"Dynamic analysis fetches content after JavaScript execution. {analyze_dynamic_disabled_reason}"
+                        value=True, # Enable by default now that we have proper Python
+                        help="Dynamic analysis fetches content after JavaScript execution. This provides comprehensive analysis of JavaScript-dependent content."
                     )
-                    if analyze_dynamic_disabled_reason: # Display info if it's disabled for a reason
-                        st.info(f"⚠️ {analyze_dynamic_disabled_reason}")
+                    st.info("✅ Dynamic analysis is now fully supported with regular Python installation!")
                 else:
                     st.info("Dynamic analysis is only applicable for 'Comprehensive Analysis'.")
                 
