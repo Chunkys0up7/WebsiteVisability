@@ -12,6 +12,8 @@ from .separate_analyzer import SeparateAnalyzer
 from .ssr_detector import SSRDetector
 from .web_crawler_analyzer import WebCrawlerAnalyzer
 from .evidence_capture import EvidenceCapture
+from .enhanced_llm_analyzer import EnhancedLLMAccessibilityAnalyzer
+from .llms_txt_analyzer import LLMsTxtAnalyzer
 
 __all__ = [
     "StaticAnalyzer",
@@ -24,5 +26,7 @@ __all__ = [
     "SSRDetector",
     "WebCrawlerAnalyzer",
     "EvidenceCapture",
+    "EnhancedLLMAccessibilityAnalyzer",
+    "LLMsTxtAnalyzer",
 ]
 

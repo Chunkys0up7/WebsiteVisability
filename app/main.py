@@ -14,6 +14,8 @@ from src.analyzers.separate_analyzer import SeparateAnalyzer
 from src.analyzers.ssr_detector import SSRDetector
 from src.analyzers.web_crawler_analyzer import WebCrawlerAnalyzer
 from src.analyzers.evidence_capture import EvidenceCapture
+from src.analyzers.enhanced_llm_analyzer import EnhancedLLMAccessibilityAnalyzer
+from src.analyzers.llms_txt_analyzer import LLMsTxtAnalyzer
 from src.utils.validators import URLValidator
 from src.models.analysis_result import AnalysisResult
 from src.models.scoring_models import Score
@@ -105,6 +107,10 @@ def initialize_session_state():
         st.session_state.crawler_analysis = {}
     if 'evidence_report' not in st.session_state:
         st.session_state.evidence_report = None
+    if 'enhanced_llm_report' not in st.session_state:
+        st.session_state.enhanced_llm_report = None
+    if 'llms_txt_analysis' not in st.session_state:
+        st.session_state.llms_txt_analysis = None
 
 def _get_grade(score: float) -> str:
     """Calculate letter grade from score"""
@@ -199,6 +205,20 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 llm_report = llm_analyzer.analyze(static_result)
                 st.session_state.llm_report = llm_report
                 logger.info(f"LLM accessibility analysis completed for {url}")
+                
+                # Enhanced LLM Analysis
+                with st.spinner("🔬 Performing enhanced LLM analysis..."):
+                    enhanced_llm_analyzer = EnhancedLLMAccessibilityAnalyzer()
+                    enhanced_llm_report = enhanced_llm_analyzer.analyze(static_result)
+                    st.session_state.enhanced_llm_report = enhanced_llm_report
+                    logger.info(f"Enhanced LLM analysis completed for {url}")
+                
+                # LLMs.txt Analysis
+                with st.spinner("📄 Analyzing llms.txt file..."):
+                    llms_txt_analyzer = LLMsTxtAnalyzer()
+                    llms_txt_analysis = llms_txt_analyzer.analyze(url)
+                    st.session_state.llms_txt_analysis = llms_txt_analysis
+                    logger.info(f"LLMs.txt analysis completed for {url}")
         
         # SSR Detection
         if analysis_type in ["Comprehensive Analysis", "SSR Detection Only"]:
@@ -451,6 +471,8 @@ def main():
         tabs = st.tabs([
             "📊 Overview",
             "🤖 LLM Analysis", 
+            "🔬 Enhanced LLM Analysis",
+            "📄 LLMs.txt Analysis",
             "🕷️ Scraper Analysis",
             "🔍 SSR Detection",
             "🕷️ Crawler Testing",
@@ -677,7 +699,279 @@ def main():
             else:
                 st.warning("LLM analysis not available. Please run the analysis first.")
         
-        with tabs[2]:  # Scraper Analysis
+        with tabs[2]:  # Enhanced LLM Analysis
+            st.header("🔬 Enhanced LLM Analysis")
+            
+            if st.session_state.enhanced_llm_report:
+                enhanced_report = st.session_state.enhanced_llm_report
+                
+                # Overall Score
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Enhanced LLM Score", f"{enhanced_report.overall_score:.1f}/100", 
+                             delta=f"Grade: {enhanced_report.grade}")
+                with col2:
+                    st.metric("Semantic HTML Score", f"{enhanced_report.semantic_html_score:.1f}/100")
+                with col3:
+                    st.metric("JavaScript Impact", f"{enhanced_report.javascript_impact_score:.1f}/100")
+                
+                st.markdown("---")
+                
+                # Crawler-Specific Analysis
+                st.subheader("🕷️ LLM Crawler Capabilities")
+                
+                for crawler_name, capability in enhanced_report.crawler_analysis.items():
+                    with st.expander(f"{capability.name} Analysis"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**Capabilities:**")
+                            st.write(f"✅ Executes JavaScript: {capability.executes_javascript}")
+                            st.write(f"✅ Uses Headless Browser: {capability.uses_headless_browser}")
+                            st.write(f"✅ Real-time Access: {capability.real_time_access}")
+                            
+                        with col2:
+                            st.markdown("**Strategy:**")
+                            st.write(f"📊 Chunking: {capability.chunking_strategy}")
+                            st.write(f"🔢 Vectorization: {capability.vectorization_quality}")
+                            st.write(f"📋 Schema Preference: {capability.schema_preference}")
+                        
+                        st.markdown("**Limitations:**")
+                        for limitation in capability.limitations:
+                            st.write(f"⚠️ {limitation}")
+                
+                st.markdown("---")
+                
+                # Content Chunking Analysis
+                st.subheader("📊 Content Chunking Analysis")
+                
+                chunking = enhanced_report.chunking_analysis
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Semantic Boundaries", chunking.semantic_boundaries)
+                with col2:
+                    st.metric("Heading Quality", f"{chunking.heading_hierarchy_quality:.2f}")
+                with col3:
+                    st.metric("Chunking Score", f"{chunking.chunking_score:.1f}/100")
+                
+                if chunking.issues:
+                    st.markdown("**⚠️ Chunking Issues:**")
+                    for issue in chunking.issues:
+                        st.error(issue)
+                
+                if chunking.recommendations:
+                    st.markdown("**💡 Chunking Recommendations:**")
+                    for rec in chunking.recommendations:
+                        st.info(rec)
+                
+                st.markdown("---")
+                
+                # Schema Analysis
+                st.subheader("📋 Schema.org Analysis")
+                
+                schema = enhanced_report.schema_analysis
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("JSON-LD Items", schema.json_ld_items)
+                with col2:
+                    st.metric("Microdata Items", schema.microdata_items)
+                with col3:
+                    st.metric("Schema Quality", f"{schema.schema_quality_score:.1f}/100")
+                
+                if schema.entity_types:
+                    st.markdown("**🏷️ Entity Types Found:**")
+                    for entity_type in schema.entity_types:
+                        st.write(f"• {entity_type}")
+                
+                if schema.llm_benefits:
+                    st.markdown("**✅ LLM Benefits:**")
+                    for benefit in schema.llm_benefits:
+                        st.success(benefit)
+                
+                if schema.missing_opportunities:
+                    st.markdown("**💡 Missing Opportunities:**")
+                    for opportunity in schema.missing_opportunities:
+                        st.info(opportunity)
+                
+                st.markdown("---")
+                
+                # Rendering Analysis
+                st.subheader("🔄 Rendering Impact Analysis")
+                
+                rendering = enhanced_report.rendering_analysis
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Rendering Type", rendering.rendering_type)
+                    st.metric("Initial Content Size", f"{rendering.initial_content_size:,} chars")
+                with col2:
+                    st.metric("JS Dependency Score", f"{rendering.javascript_dependency_score:.2f}")
+                    st.metric("Visibility Score", f"{rendering.visibility_score:.1f}/100")
+                
+                st.markdown(f"**Framework Impact:** {rendering.framework_impact}")
+                
+                if rendering.ssr_benefits:
+                    st.markdown("**✅ SSR Benefits:**")
+                    for benefit in rendering.ssr_benefits:
+                        st.success(benefit)
+                
+                if rendering.csr_limitations:
+                    st.markdown("**❌ CSR Limitations:**")
+                    for limitation in rendering.csr_limitations:
+                        st.error(limitation)
+                
+                st.markdown("---")
+                
+                # CSS Visibility Analysis
+                st.subheader("👁️ CSS Visibility Analysis")
+                
+                css_analysis = enhanced_report.css_visibility_analysis
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Display: None", css_analysis['display_none_elements'])
+                with col2:
+                    st.metric("Visibility: Hidden", css_analysis['visibility_hidden_elements'])
+                with col3:
+                    st.metric("Total Hidden", css_analysis['total_hidden_elements'])
+                
+                st.info(f"**LLM Impact:** {css_analysis['llm_impact']}")
+                st.markdown(f"*{css_analysis['explanation']}*")
+                
+                if css_analysis['recommendations']:
+                    st.markdown("**💡 CSS Recommendations:**")
+                    for rec in css_analysis['recommendations']:
+                        st.info(rec)
+                
+                st.markdown("---")
+                
+                # Enhanced Recommendations
+                st.subheader("💡 Enhanced Recommendations")
+                
+                if enhanced_report.critical_recommendations:
+                    st.markdown("**🚨 Critical Issues:**")
+                    for rec in enhanced_report.critical_recommendations:
+                        st.error(rec)
+                
+                if enhanced_report.high_priority_recommendations:
+                    st.markdown("**⚠️ High Priority:**")
+                    for rec in enhanced_report.high_priority_recommendations:
+                        st.warning(rec)
+                
+                if enhanced_report.medium_priority_recommendations:
+                    st.markdown("**💡 Medium Priority:**")
+                    for rec in enhanced_report.medium_priority_recommendations:
+                        st.info(rec)
+                
+                st.markdown("---")
+                
+                # Technical Explanations
+                st.subheader("🔬 Technical Explanations")
+                
+                for key, explanation in enhanced_report.technical_explanations.items():
+                    with st.expander(f"About {key.replace('_', ' ').title()}"):
+                        st.markdown(explanation)
+                
+                # Evidence Sources
+                st.markdown("**📚 Evidence Sources:**")
+                for source in enhanced_report.evidence_sources:
+                    st.write(f"• {source}")
+            
+            else:
+                st.info("Enhanced LLM analysis not available. Run analysis with 'LLM Accessibility Only' or 'Comprehensive Analysis' focus.")
+        
+        with tabs[3]:  # LLMs.txt Analysis
+            st.header("📄 LLMs.txt Analysis")
+            
+            if st.session_state.llms_txt_analysis:
+                llms_analysis = st.session_state.llms_txt_analysis
+                
+                # Overall Status
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    status_icon = "✅" if llms_analysis.is_present else "❌"
+                    st.metric("LLMs.txt Status", f"{status_icon} {'Present' if llms_analysis.is_present else 'Missing'}")
+                with col2:
+                    st.metric("Quality Score", f"{llms_analysis.quality_score:.1f}/100")
+                with col3:
+                    st.metric("Format Valid", "✅" if llms_analysis.format_valid else "❌")
+                
+                if llms_analysis.is_present:
+                    st.markdown("---")
+                    
+                    # File Content
+                    st.subheader("📄 File Content")
+                    st.code(llms_analysis.content, language="markdown")
+                    
+                    st.markdown("---")
+                    
+                    # Sections Analysis
+                    st.subheader("📋 Sections Analysis")
+                    
+                    for section_name, items in llms_analysis.sections.items():
+                        if items:
+                            with st.expander(f"{section_name.title()} ({len(items)} items)"):
+                                for item in items:
+                                    st.write(f"• {item}")
+                    
+                    st.markdown("---")
+                    
+                    # Benefits
+                    if llms_analysis.benefits:
+                        st.subheader("✅ Benefits")
+                        for benefit in llms_analysis.benefits:
+                            st.success(benefit)
+                    
+                    # Issues
+                    if llms_analysis.issues:
+                        st.subheader("⚠️ Issues")
+                        for issue in llms_analysis.issues:
+                            st.warning(issue)
+                    
+                    # Recommendations
+                    if llms_analysis.recommendations:
+                        st.subheader("💡 Recommendations")
+                        for rec in llms_analysis.recommendations:
+                            st.info(rec)
+                
+                else:
+                    st.markdown("---")
+                    st.warning("No llms.txt file found at the website root.")
+                    st.markdown("""
+                    **What is llms.txt?**
+                    
+                    llms.txt is a new standard (2024-2025) for guiding LLMs to quality content on your website.
+                    It's different from robots.txt - while robots.txt focuses on exclusion, llms.txt focuses on guidance.
+                    
+                    **Benefits:**
+                    - Directs AI crawlers to most important pages
+                    - Reduces confusion from cluttered navigation  
+                    - Improves brand representation in AI answers
+                    - Works alongside robots.txt and sitemap.xml
+                    
+                    **Example llms.txt:**
+                    ```markdown
+                    # Company Name - LLM Guide
+                    
+                    ## About
+                    Brief description of site and content
+                    
+                    ## Key Pages
+                    - /products/main: Main product description
+                    - /docs/api: API documentation
+                    - /blog/important: Key article
+                    
+                    ## Documentation
+                    Developer docs at /docs/ - comprehensive guides
+                    ```
+                    """)
+            
+            else:
+                st.info("LLMs.txt analysis not available. Run analysis with 'LLM Accessibility Only' or 'Comprehensive Analysis' focus.")
+        
+        with tabs[4]:  # Scraper Analysis
             st.header("🕷️ Scraper Analysis")
             
             if st.session_state.score:
@@ -747,7 +1041,7 @@ def main():
             else:
                 st.warning("Scraper analysis not available. Please run the analysis first.")
         
-        with tabs[3]:  # SSR Detection
+        with tabs[5]:  # SSR Detection
             st.header("🔍 Server-Side Rendering (SSR) Detection")
             
             if st.session_state.ssr_detection:
@@ -821,7 +1115,7 @@ def main():
             else:
                 st.warning("SSR detection not available. Please run the analysis first.")
         
-        with tabs[4]:  # Crawler Testing
+        with tabs[6]:  # Crawler Testing
             st.header("🕷️ Web Crawler Testing")
             
             if st.session_state.crawler_analysis:
@@ -885,7 +1179,7 @@ def main():
             else:
                 st.warning("Crawler testing not available. Please run 'Web Crawler Testing' analysis first.")
         
-        with tabs[5]:  # Evidence Report
+        with tabs[7]:  # Evidence Report
             st.header("📊 Evidence Report")
             
             if st.session_state.evidence_report:
@@ -963,7 +1257,7 @@ def main():
             else:
                 st.warning("Evidence report not available. Please run analysis with 'Capture Evidence' enabled.")
         
-        with tabs[6]:  # Content
+        with tabs[8]:  # Content
             st.header("Content Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.content_analysis:
@@ -993,7 +1287,7 @@ def main():
                         height=300
                     )
         
-        with tabs[7]:  # Structure
+        with tabs[9]:  # Structure
             st.header("HTML Structure Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.structure_analysis:
@@ -1031,7 +1325,7 @@ def main():
                     else:
                         st.warning("No semantic HTML5 elements detected")
         
-        with tabs[8]:  # Meta Data
+        with tabs[10]:  # Meta Data
             st.header("Meta Data & Structured Data")
             
             if st.session_state.static_result and st.session_state.static_result.meta_analysis:
@@ -1070,7 +1364,7 @@ def main():
                             for i, data in enumerate(meta.structured_data[:5], 1):
                                 st.json(data.data)
         
-        with tabs[9]:  # JavaScript
+        with tabs[11]:  # JavaScript
             st.header("JavaScript Analysis")
             
             if st.session_state.static_result and st.session_state.static_result.javascript_analysis:
@@ -1110,7 +1404,7 @@ def main():
                             for item in comp.missing_in_static[:10]:
                                 st.markdown(f"- {item}")
         
-        with tabs[10]:  # Recommendations
+        with tabs[12]:  # Recommendations
             st.header("💡 Optimization Recommendations")
             
             if score.recommendations:
