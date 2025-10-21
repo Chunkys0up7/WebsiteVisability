@@ -41,9 +41,9 @@ st.set_page_config(
 
 # Custom CSS for better styling
 st.markdown("""
-    <style>
-        /* General Streamlit Overrides */
-        .stApp {
+<style>
+    /* General Streamlit Overrides */
+    .stApp {
             background-color: #ffffff;
             color: #1a1a1a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -59,81 +59,81 @@ st.markdown("""
         }
 
         /* Main Header - High contrast, no gradient */
-        .main-header {
-            font-size: 3.2rem;
+    .main-header {
+        font-size: 3.2rem;
             font-weight: 800;
             color: #1a1a1a;
-            margin-bottom: 0.5rem;
-            padding-top: 1rem;
-            line-height: 1.2;
+        margin-bottom: 0.5rem;
+        padding-top: 1rem;
+        line-height: 1.2;
             text-align: center;
             text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        .subtitle {
-            font-size: 1.25rem;
+    }
+    .subtitle {
+        font-size: 1.25rem;
             color: #4a4a4a;
-            margin-bottom: 2.5rem;
+        margin-bottom: 2.5rem;
             text-align: center;
             font-weight: 400;
-        }
+    }
 
         /* Section Headers - High contrast */
-        .section-header {
-            font-size: 2rem;
+    .section-header {
+        font-size: 2rem;
             font-weight: 700;
             color: #1a1a1a;
             border-bottom: 3px solid #2563eb;
-            padding-bottom: 0.8rem;
-            margin-top: 3rem;
-            margin-bottom: 2rem;
-        }
-        .sub-section-header {
-            font-size: 1.6rem;
+        padding-bottom: 0.8rem;
+        margin-top: 3rem;
+        margin-bottom: 2rem;
+    }
+    .sub-section-header {
+        font-size: 1.6rem;
             font-weight: 600;
             color: #1a1a1a;
-            margin-top: 1.5rem;
-            margin-bottom: 1rem;
-        }
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+    }
 
         /* Score Cards - Enhanced contrast */
-        .score-card {
-            background-color: #ffffff;
+    .score-card {
+        background-color: #ffffff;
             border-left: 6px solid;
             border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
             box-shadow: 0 4px 16px rgba(0,0,0,0.1);
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
             min-height: 120px;
             border: 1px solid #e5e7eb;
-        }
-        .score-card:hover {
+    }
+    .score-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-        }
-        .score-card-header {
-            font-size: 1.1em;
+    }
+    .score-card-header {
+        font-size: 1.1em;
             font-weight: 600;
-            margin-bottom: 0.6rem;
+        margin-bottom: 0.6rem;
             color: #1a1a1a;
-        }
-        .score-value {
-            font-size: 2.2em;
+    }
+    .score-value {
+        font-size: 2.2em;
             font-weight: 800;
-            line-height: 1;
+        line-height: 1;
             color: #1a1a1a;
             margin: 0.5rem 0;
-        }
-        .score-grade {
-            font-size: 1em;
+    }
+    .score-grade {
+        font-size: 1em;
             font-weight: 500;
             color: #4a4a4a;
-            margin-top: 0.5rem;
-        }
+        margin-top: 0.5rem;
+    }
         /* Score card specific colors - High contrast with proper text colors */
         .score-card.excellent { 
             border-left-color: #059669; 
@@ -185,15 +185,36 @@ st.markdown("""
             color: #374151;
         }
 
+        /* Tab Groups and Navigation */
+        .tab-group-header {
+            margin: 2rem 0 1rem 0;
+            padding: 1rem;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .tab-group-header h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 0 0 0.5rem 0;
+        }
+        .tab-group-header p {
+            color: #4a4a4a;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
         /* Streamlit Tabs - Enhanced visibility */
         .stTabs [data-baseweb="tab-list"] {
             gap: 8px;
-            justify-content: center;
-            margin-bottom: 2rem;
+            justify-content: flex-start;
+            margin-bottom: 1rem;
             flex-wrap: wrap;
             background-color: #f8fafc;
-            padding: 8px;
+            padding: 12px;
             border-radius: 12px;
+            border: 1px solid #e5e7eb;
         }
         .stTabs [data-baseweb="tab"] {
             padding: 12px 20px;
@@ -203,17 +224,54 @@ st.markdown("""
             transition: all 0.2s ease-in-out;
             white-space: nowrap;
             border-radius: 8px;
-            background-color: transparent;
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
         .stTabs [data-baseweb="tab"]:hover {
-            color: #1a1a1a;
-            background-color: #e5e7eb;
+            color: #2563eb;
+            background-color: #eff6ff;
+            border-color: #2563eb;
+            transform: translateY(-1px);
         }
         .stTabs [aria-selected="true"] {
-            color: #1a1a1a;
-            background-color: #ffffff;
-            border-bottom: 3px solid #2563eb;
+            color: #ffffff;
+            background-color: #2563eb;
+            border-color: #2563eb;
             font-weight: 600;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+        .stTabs [aria-selected="true"]:hover {
+            color: #ffffff;
+            background-color: #1d4ed8;
+        }
+
+        /* Tab Content */
+        .stTabs [role="tabpanel"] {
+            padding: 1.5rem;
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            margin-top: 1rem;
+        }
+
+        /* Tab Navigation Indicators */
+        .tab-nav-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        .tab-nav-indicator .current {
+            font-weight: 600;
+            color: #2563eb;
+        }
+        .tab-nav-indicator .separator {
+            color: #94a3b8;
         }
 
         /* Responsive columns */
@@ -236,10 +294,105 @@ st.markdown("""
             }
         }
 
-        /* Sidebar improvements - High contrast */
+        /* Sidebar improvements - Enhanced readability */
         .css-1d391kg {
             background-color: #ffffff;
             border-right: 2px solid #e5e7eb;
+            padding: 2rem 1rem;
+        }
+        
+        /* Sidebar header */
+        .sidebar-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #2563eb;
+        }
+        
+        /* Sidebar sections */
+        .sidebar-section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .sidebar-subheader {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 0.8rem;
+        }
+        
+        .sidebar-description {
+            font-size: 0.9rem;
+            color: #4a4a4a;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+        
+        /* Sidebar form elements */
+        .stForm > div[data-testid="stForm"] {
+            border: none;
+            padding: 0;
+        }
+        
+        .stForm [data-baseweb="select"] {
+            margin-top: 0.5rem;
+        }
+        
+        .stForm .stButton button {
+            width: 100%;
+            margin-top: 1rem;
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            border: none;
+        }
+        
+        .stForm .stButton button:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+        
+        /* Sidebar dividers */
+        .sidebar-section hr {
+            margin: 1rem 0;
+            border: none;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        /* Sidebar help text */
+        .stForm [data-baseweb="tooltip"] {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        
+        /* Sidebar multiselect */
+        .stForm [data-baseweb="multi-select"] {
+            margin-top: 0.5rem;
+            border-radius: 6px;
+            border-color: #d1d5db;
+        }
+        
+        .stForm [data-baseweb="multi-select"]:hover {
+            border-color: #2563eb;
+        }
+        
+        /* Sidebar checkboxes */
+        .stForm [data-testid="stCheckbox"] {
+            margin-top: 1rem;
+        }
+        
+        .stForm [data-testid="stCheckbox"] label {
+            color: #1a1a1a;
+            font-weight: 500;
         }
 
         /* Button improvements - Enhanced visibility */
@@ -451,9 +604,60 @@ st.markdown("""
             .stCheckbox label {
                 color: #f1f5f9;
             }
-            .css-1d391kg,
-            .css-1d391kg .stMarkdown {
+            /* Dark mode sidebar */
+            .css-1d391kg {
+                background-color: #1e293b;
+                border-right-color: #334155;
+            }
+            
+            .sidebar-header {
                 color: #f1f5f9;
+                border-bottom-color: #3b82f6;
+            }
+            
+            .sidebar-section {
+                background-color: #0f172a;
+                border-color: #334155;
+            }
+            
+            .sidebar-subheader {
+                color: #f1f5f9;
+            }
+            
+            .sidebar-description {
+                color: #cbd5e1;
+            }
+            
+            .stForm [data-baseweb="select"] {
+                background-color: #1e293b;
+                color: #f1f5f9;
+            }
+            
+            .stForm .stButton button {
+                background-color: #3b82f6;
+                color: #f1f5f9;
+            }
+            
+            .stForm .stButton button:hover {
+                background-color: #2563eb;
+            }
+            
+            .stForm [data-baseweb="tooltip"] {
+                color: #94a3b8;
+            }
+            
+            .stForm [data-baseweb="multi-select"] {
+                background-color: #1e293b;
+                border-color: #334155;
+                color: #f1f5f9;
+            }
+            
+            .stForm [data-testid="stCheckbox"] label {
+                color: #f1f5f9;
+            }
+            
+            .sidebar-section hr {
+                border-color: #334155;
             }
             .empty-state {
                 color: #94a3b8;
@@ -512,23 +716,63 @@ st.markdown("""
             .score-card.neutral .score-grade {
                 color: #d1d5db;
             }
+            /* Dark mode tab groups */
+            .tab-group-header {
+                background-color: #1e293b;
+                border-color: #334155;
+            }
+            .tab-group-header h3 {
+                color: #f1f5f9;
+            }
+            .tab-group-header p {
+                color: #cbd5e1;
+            }
+
+            /* Dark mode tabs */
             .stTabs [data-baseweb="tab-list"] {
                 background-color: #1e293b;
+                border-color: #334155;
             }
             .stTabs [data-baseweb="tab"] {
                 color: #cbd5e1;
+                background-color: #0f172a;
+                border-color: #334155;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.2);
             }
             .stTabs [data-baseweb="tab"]:hover {
-                color: #f1f5f9;
-                background-color: #334155;
+                color: #60a5fa;
+                background-color: #1e293b;
+                border-color: #60a5fa;
             }
             .stTabs [aria-selected="true"] {
                 color: #f1f5f9;
-                background-color: #0f172a;
-                border-bottom-color: #3b82f6;
+                background-color: #3b82f6;
+                border-color: #60a5fa;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
             }
-        }
-    </style>
+            .stTabs [aria-selected="true"]:hover {
+                background-color: #2563eb;
+            }
+
+            /* Dark mode tab content */
+            .stTabs [role="tabpanel"] {
+                background-color: #1e293b;
+                border-color: #334155;
+            }
+
+            /* Dark mode tab navigation */
+            .tab-nav-indicator {
+                background-color: #1e293b;
+                border-color: #334155;
+            }
+            .tab-nav-indicator .current {
+                color: #60a5fa;
+            }
+            .tab-nav-indicator .separator {
+                color: #64748b;
+            }
+    }
+</style>
 """, unsafe_allow_html=True)
 
 def initialize_session_state():
@@ -788,10 +1032,19 @@ def main():
     
     # Sidebar - Input Form
     with st.sidebar:
-        st.header("⚙️ Configuration")
+        st.markdown('<h2 class="sidebar-header">⚙️ Analysis Configuration</h2>', unsafe_allow_html=True)
         
         with st.form("analysis_config_form"):
-            st.subheader("1. Target Website")
+            # Target Website Section
+            st.markdown("""
+            <div class="sidebar-section">
+                <h3 class="sidebar-subheader">🎯 Target Website</h3>
+                <div class="sidebar-description">
+                    Enter the website URL you want to analyze. Make sure it's accessible and includes the full URL with https://.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
             url_input = st.text_input(
                 "Website URL",
                 value=st.session_state.get('analyzed_url', ''),
@@ -799,7 +1052,22 @@ def main():
                 help="Enter the full URL including https://"
             )
             
-            st.subheader("2. Analysis Focus")
+            st.markdown("---")
+            
+            # Analysis Focus Section
+            st.markdown("""
+            <div class="sidebar-section">
+                <h3 class="sidebar-subheader">🔍 Analysis Focus</h3>
+                <div class="sidebar-description">
+                    Choose the type of analysis to perform:
+                    • <strong>Comprehensive Analysis:</strong> Full website evaluation
+                    • <strong>LLM Accessibility:</strong> Focus on LLM readability
+                    • <strong>Web Crawler Testing:</strong> Test crawler access
+                    • <strong>SSR Detection:</strong> Check server-side rendering
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
             analysis_options = ["Comprehensive Analysis", "LLM Accessibility Only", "Web Crawler Testing", "SSR Detection Only"]
             last_analysis = st.session_state.get('last_analysis_type', 'Comprehensive Analysis')
             
@@ -946,24 +1214,68 @@ def main():
         
         st.markdown("---")
         
-        # Detailed Results in Tabs
-        tabs = st.tabs([
+        # Organize tabs into logical groups
+        st.markdown("""
+        <div class="tab-group-header">
+            <h3>📊 Analysis Results</h3>
+            <p>Key findings and overview of the analysis</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Primary Analysis Tabs
+        primary_tabs = st.tabs([
             "🎯 Executive Summary",
             "📊 Overview",
             "🤖 LLM Analysis",
+            "💡 Recommendations"
+        ])
+        
+        st.markdown("""
+        <div class="tab-group-header">
+            <h3>🔍 Detailed Analysis</h3>
+            <p>In-depth analysis of specific website components</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Technical Analysis Tabs
+        technical_tabs = st.tabs([
             "🔬 Enhanced LLM Analysis",
             "📄 LLMs.txt Analysis",
             "🕷️ Scraper Analysis",
             "🔍 SSR Detection",
-            "🕷️ Crawler Testing",
-            "📊 Evidence Report",
+            "🕷️ Crawler Testing"
+        ])
+        
+        st.markdown("""
+        <div class="tab-group-header">
+            <h3>🏗️ Website Structure</h3>
+            <p>Technical breakdown of website components</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Structure Analysis Tabs
+        structure_tabs = st.tabs([
             "📝 Content",
             "🏗️ Structure",
             "🏷️ Meta Data",
-            "⚡ JavaScript",
-            "💡 Recommendations",
+            "⚡ JavaScript"
+        ])
+        
+        st.markdown("""
+        <div class="tab-group-header">
+            <h3>📋 Reports</h3>
+            <p>Evidence and export options</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Report Tabs
+        report_tabs = st.tabs([
+            "📊 Evidence Report",
             "📥 Export Report"
         ])
+        
+        # Combine all tabs for reference
+        tabs = primary_tabs + technical_tabs + structure_tabs + report_tabs
         
         with tabs[0]:  # Executive Summary
             st.markdown('<h2 class="section-header">🎯 Executive Summary & Key Takeaways</h2>', unsafe_allow_html=True)
@@ -1658,9 +1970,9 @@ def main():
                     for rec in medium_recs:
                         st.info(f"**{rec.priority.value.upper()}**: {rec.title}")
                         st.write(rec.description)
-                        if rec.code_example:
-                            with st.expander("💻 Code Example"):
-                                st.code(rec.code_example, language="html")
+                    if rec.code_example:
+                        with st.expander("💻 Code Example"):
+                            st.code(rec.code_example, language="html")
                         st.markdown("---")
                 
                 # Display low priority recommendations
@@ -1672,7 +1984,7 @@ def main():
                         if rec.code_example:
                             with st.expander("💻 Code Example"):
                                 st.code(rec.code_example, language="html")
-                        st.markdown("---")
+                    st.markdown("---")
                 
                 if not st.session_state.score.recommendations:
                     st.success("🎉 No significant recommendations found - your site is well-optimized!")
