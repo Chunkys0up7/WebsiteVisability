@@ -267,6 +267,7 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                     # Create a mock crawler result for LLM analysis
                     llm_evidence = type('obj', (object,), {
                         'crawler_name': 'LLM Analysis',
+                        'crawler_type': 'LLM Analysis',
                         'accessibility_score': st.session_state.llm_report.overall_score,
                         'content_accessible': st.session_state.llm_report.accessible_content,
                         'content_inaccessible': st.session_state.llm_report.inaccessible_content,
@@ -280,6 +281,7 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 if st.session_state.ssr_detection:
                     ssr_evidence = type('obj', (object,), {
                         'crawler_name': 'SSR Detection',
+                        'crawler_type': 'SSR Detection',
                         'accessibility_score': st.session_state.ssr_detection.confidence * 100,
                         'content_accessible': {'ssr_detected': st.session_state.ssr_detection.is_ssr},
                         'content_inaccessible': {'rendering_type': st.session_state.ssr_detection.rendering_type},
