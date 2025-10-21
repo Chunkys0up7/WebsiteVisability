@@ -156,35 +156,37 @@ class TestDynamicAnalyzer:
     async def test_analyze_async_success(self, sample_html):
         """Test successful async analysis"""
         with patch('src.analyzers.dynamic_analyzer.async_playwright') as mock_pw_factory:
-            mock_page = AsyncMock()
-            mock_page.goto = AsyncMock(return_value=Mock(status=200))
-            mock_page.wait_for_load_state = AsyncMock()
-            mock_page.content = AsyncMock(return_value=sample_html)
-            mock_page.close = AsyncMock()
-            mock_page.set_default_timeout = Mock()
-            mock_page.on = Mock()
-            
-            mock_context = AsyncMock()
-            mock_context.new_page = AsyncMock(return_value=mock_page)
-            mock_context.close = AsyncMock()
-            mock_page.context = mock_context
-            
-            mock_browser = AsyncMock()
-            mock_browser.new_context = AsyncMock(return_value=mock_context)
-            mock_browser.close = AsyncMock()
-            
-            mock_playwright = AsyncMock()
-            mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
-            mock_playwright.stop = AsyncMock()
-            
-            mock_pw_factory.return_value.start = AsyncMock(return_value=mock_playwright)
-            
-            analyzer = DynamicAnalyzer()
-            result = await analyzer.analyze_async('https://example.com')
-            
-            assert isinstance(result, AnalysisResult)
-            assert result.status == 'success'
-            assert result.url == 'https://example.com'
+            # Mock Windows Store Python detection to return False
+            with patch.object(DynamicAnalyzer, '_check_windows_store_python', return_value=False):
+                mock_page = AsyncMock()
+                mock_page.goto = AsyncMock(return_value=Mock(status=200))
+                mock_page.wait_for_load_state = AsyncMock()
+                mock_page.content = AsyncMock(return_value=sample_html)
+                mock_page.close = AsyncMock()
+                mock_page.set_default_timeout = Mock()
+                mock_page.on = Mock()
+                
+                mock_context = AsyncMock()
+                mock_context.new_page = AsyncMock(return_value=mock_page)
+                mock_context.close = AsyncMock()
+                mock_page.context = mock_context
+                
+                mock_browser = AsyncMock()
+                mock_browser.new_context = AsyncMock(return_value=mock_context)
+                mock_browser.close = AsyncMock()
+                
+                mock_playwright = AsyncMock()
+                mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+                mock_playwright.stop = AsyncMock()
+                
+                mock_pw_factory.return_value.start = AsyncMock(return_value=mock_playwright)
+                
+                analyzer = DynamicAnalyzer()
+                result = await analyzer.analyze_async('https://example.com')
+                
+                assert isinstance(result, AnalysisResult)
+                assert result.status == 'success'
+                assert result.url == 'https://example.com'
             assert result.content_analysis is not None
             assert result.structure_analysis is not None
             assert result.meta_analysis is not None

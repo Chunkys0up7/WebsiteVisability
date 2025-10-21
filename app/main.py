@@ -148,23 +148,25 @@ def get_score_color_class(score: float) -> str:
 
 def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str = "Comprehensive Analysis", 
                     crawler_types: list = None, capture_evidence: bool = True):
-    """Perform complete website analysis"""
+    """Perform website analysis based on selected focus"""
     try:
-        # Static Analysis
-        with st.spinner("🔍 Performing static analysis..."):
-            static_analyzer = StaticAnalyzer(timeout=30)
-            static_result = static_analyzer.analyze(url)
-            
-            if static_result.status != "success":
-                st.error(f"Static analysis failed: {static_result.message}")
-                return False
-            
-            st.session_state.static_result = static_result
-            logger.info(f"Static analysis completed for {url}")
+        # Always need static analysis as base for most analysis types
+        static_result = None
+        if analysis_type in ["Comprehensive Analysis", "LLM Accessibility Only", "Web Crawler Testing", "SSR Detection Only"]:
+            with st.spinner("🔍 Performing static analysis..."):
+                static_analyzer = StaticAnalyzer(timeout=30)
+                static_result = static_analyzer.analyze(url)
+                
+                if static_result.status != "success":
+                    st.error(f"Static analysis failed: {static_result.message}")
+                    return False
+                
+                st.session_state.static_result = static_result
+                logger.info(f"Static analysis completed for {url}")
         
-        # Dynamic Analysis (optional)
+        # Dynamic Analysis (only for Comprehensive Analysis)
         dynamic_result = None
-        if analyze_dynamic:
+        if analysis_type == "Comprehensive Analysis" and analyze_dynamic:
             with st.spinner("🌐 Performing dynamic analysis (rendering with browser)..."):
                 try:
                     dynamic_analyzer = DynamicAnalyzer(timeout=30, headless=True)
@@ -181,21 +183,22 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                     logger.error(f"Dynamic analysis error for {url}: {e}")
                     dynamic_result = None
         
-        # Content Comparison
+        # Content Comparison (only for Comprehensive Analysis with dynamic results)
         comparison = None
-        if dynamic_result:
+        if analysis_type == "Comprehensive Analysis" and dynamic_result:
             with st.spinner("📊 Comparing static vs dynamic content..."):
                 comparator = ContentComparator()
                 comparison = comparator.compare(static_result, dynamic_result)
                 st.session_state.comparison = comparison
                 logger.info(f"Content comparison completed for {url}")
         
-        # LLM Accessibility Analysis
-        with st.spinner("🤖 Analyzing LLM accessibility..."):
-            llm_analyzer = LLMAccessibilityAnalyzer()
-            llm_report = llm_analyzer.analyze(static_result)
-            st.session_state.llm_report = llm_report
-            logger.info(f"LLM accessibility analysis completed for {url}")
+        # LLM Accessibility Analysis (for Comprehensive Analysis and LLM Accessibility Only)
+        if analysis_type in ["Comprehensive Analysis", "LLM Accessibility Only"]:
+            with st.spinner("🤖 Analyzing LLM accessibility..."):
+                llm_analyzer = LLMAccessibilityAnalyzer()
+                llm_report = llm_analyzer.analyze(static_result)
+                st.session_state.llm_report = llm_report
+                logger.info(f"LLM accessibility analysis completed for {url}")
         
         # SSR Detection
         if analysis_type in ["Comprehensive Analysis", "SSR Detection Only"]:
@@ -226,20 +229,57 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             
             st.session_state.crawler_analysis = crawler_results
         
-        # Evidence Capture
-        if capture_evidence and st.session_state.crawler_analysis:
+        # Evidence Capture (only if enabled)
+        if capture_evidence:
             with st.spinner("📊 Capturing evidence and generating reports..."):
                 evidence_capture = EvidenceCapture()
-                evidence_report = evidence_capture.create_evidence_report(url, st.session_state.crawler_analysis)
-                st.session_state.evidence_report = evidence_report
-                logger.info(f"Evidence report generated for {url}")
+                
+                # Create evidence for different analysis types
+                evidence_data = {}
+                
+                # Add crawler analysis evidence if available
+                if st.session_state.crawler_analysis:
+                    evidence_data.update(st.session_state.crawler_analysis)
+                
+                # Add LLM analysis evidence if available
+                if st.session_state.llm_report:
+                    # Create a mock crawler result for LLM analysis
+                    llm_evidence = type('obj', (object,), {
+                        'crawler_name': 'LLM Analysis',
+                        'accessibility_score': st.session_state.llm_report.overall_score,
+                        'content_accessible': st.session_state.llm_report.accessible_content,
+                        'content_inaccessible': st.session_state.llm_report.inaccessible_content,
+                        'evidence': [f"LLM accessibility score: {st.session_state.llm_report.overall_score:.1f}"],
+                        'recommendations': st.session_state.llm_report.recommendations
+                    })()
+                    evidence_data['llm_analysis'] = llm_evidence
+                
+                # Add SSR detection evidence if available
+                if st.session_state.ssr_detection:
+                    ssr_evidence = type('obj', (object,), {
+                        'crawler_name': 'SSR Detection',
+                        'accessibility_score': st.session_state.ssr_detection.confidence * 100,
+                        'content_accessible': {'ssr_detected': st.session_state.ssr_detection.is_ssr},
+                        'content_inaccessible': {'rendering_type': st.session_state.ssr_detection.rendering_type},
+                        'evidence': st.session_state.ssr_detection.evidence,
+                        'recommendations': ['SSR detection completed'] if st.session_state.ssr_detection.is_ssr else ['Consider implementing SSR']
+                    })()
+                    evidence_data['ssr_detection'] = ssr_evidence
+                
+                if evidence_data:
+                    evidence_report = evidence_capture.create_evidence_report(url, evidence_data)
+                    st.session_state.evidence_report = evidence_report
+                    logger.info(f"Evidence report generated for {url}")
+                else:
+                    st.warning("No evidence data available to capture")
         
-        # Scoring
-        with st.spinner("⚡ Calculating scores and generating recommendations..."):
-            scoring_engine = ScoringEngine()
-            score = scoring_engine.calculate_score(static_result, comparison)
-            st.session_state.score = score
-            logger.info(f"Scoring completed for {url}")
+        # Scoring (only for Comprehensive Analysis)
+        if analysis_type == "Comprehensive Analysis":
+            with st.spinner("⚡ Calculating scores and generating recommendations..."):
+                scoring_engine = ScoringEngine()
+                score = scoring_engine.calculate_score(static_result, comparison)
+                st.session_state.score = score
+                logger.info(f"Scoring completed for {url}")
         
         st.session_state.analysis_complete = True
         st.session_state.analyzed_url = url
