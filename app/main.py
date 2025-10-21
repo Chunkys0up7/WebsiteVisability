@@ -419,6 +419,143 @@ def main():
                 
                 if success:
                     st.success("✅ Analysis complete!")
+                    
+                    # Add download section
+                    st.markdown("---")
+                    st.subheader("📥 Download Comprehensive Report")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        if st.button("📄 HTML Report", help="Download comprehensive HTML report with charts"):
+                            try:
+                                report_data = ReportData(
+                                    url=st.session_state.analyzed_url,
+                                    analysis_type=analysis_type,
+                                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                    analysis_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                                    static_result=st.session_state.static_result,
+                                    dynamic_result=st.session_state.dynamic_result,
+                                    comparison=st.session_state.comparison,
+                                    score=st.session_state.score,
+                                    llm_report=st.session_state.llm_report,
+                                    enhanced_llm_report=st.session_state.enhanced_llm_report,
+                                    llms_txt_analysis=st.session_state.llms_txt_analysis,
+                                    ssr_detection=st.session_state.ssr_detection,
+                                    crawler_analysis=st.session_state.crawler_analysis,
+                                    evidence_report=st.session_state.evidence_report,
+                                    analysis_duration=0.0,
+                                    user_agent="Web Scraper & LLM Analyzer",
+                                    analysis_notes=f"Analysis type: {analysis_type}"
+                                )
+                                
+                                report_generator = ComprehensiveReportGenerator()
+                                html_report = report_generator.generate_report(report_data, 'html')
+                                
+                                st.download_button(
+                                    label="📄 Download HTML Report",
+                                    data=html_report,
+                                    file_name=f"web_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                                    mime="text/html",
+                                    help="Download comprehensive HTML report with charts and visualizations"
+                                )
+                            except Exception as e:
+                                st.error(f"Error generating HTML report: {str(e)}")
+                    
+                    with col2:
+                        if st.button("📋 Markdown Report", help="Download Markdown report"):
+                            try:
+                                report_data = ReportData(
+                                    url=st.session_state.analyzed_url,
+                                    analysis_type=analysis_type,
+                                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                    analysis_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                                    static_result=st.session_state.static_result,
+                                    dynamic_result=st.session_state.dynamic_result,
+                                    comparison=st.session_state.comparison,
+                                    score=st.session_state.score,
+                                    llm_report=st.session_state.llm_report,
+                                    enhanced_llm_report=st.session_state.enhanced_llm_report,
+                                    llms_txt_analysis=st.session_state.llms_txt_analysis,
+                                    ssr_detection=st.session_state.ssr_detection,
+                                    crawler_analysis=st.session_state.crawler_analysis,
+                                    evidence_report=st.session_state.evidence_report,
+                                    analysis_duration=0.0,
+                                    user_agent="Web Scraper & LLM Analyzer",
+                                    analysis_notes=f"Analysis type: {analysis_type}"
+                                )
+                                
+                                report_generator = ComprehensiveReportGenerator()
+                                markdown_report = report_generator.generate_report(report_data, 'markdown')
+                                
+                                st.download_button(
+                                    label="📋 Download Markdown Report",
+                                    data=markdown_report,
+                                    file_name=f"web_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                                    mime="text/markdown",
+                                    help="Download Markdown report for documentation"
+                                )
+                            except Exception as e:
+                                st.error(f"Error generating Markdown report: {str(e)}")
+                    
+                    with col3:
+                        if st.button("📊 JSON Data", help="Download raw JSON data"):
+                            try:
+                                report_data = ReportData(
+                                    url=st.session_state.analyzed_url,
+                                    analysis_type=analysis_type,
+                                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                    analysis_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                                    static_result=st.session_state.static_result,
+                                    dynamic_result=st.session_state.dynamic_result,
+                                    comparison=st.session_state.comparison,
+                                    score=st.session_state.score,
+                                    llm_report=st.session_state.llm_report,
+                                    enhanced_llm_report=st.session_state.enhanced_llm_report,
+                                    llms_txt_analysis=st.session_state.llms_txt_analysis,
+                                    ssr_detection=st.session_state.ssr_detection,
+                                    crawler_analysis=st.session_state.crawler_analysis,
+                                    evidence_report=st.session_state.evidence_report,
+                                    analysis_duration=0.0,
+                                    user_agent="Web Scraper & LLM Analyzer",
+                                    analysis_notes=f"Analysis type: {analysis_type}"
+                                )
+                                
+                                report_generator = ComprehensiveReportGenerator()
+                                json_report = report_generator.generate_report(report_data, 'json')
+                                
+                                st.download_button(
+                                    label="📊 Download JSON Data",
+                                    data=json_report,
+                                    file_name=f"web_analysis_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                                    mime="application/json",
+                                    help="Download raw analysis data in JSON format"
+                                )
+                            except Exception as e:
+                                st.error(f"Error generating JSON report: {str(e)}")
+                    
+                    with col4:
+                        if st.button("📈 Evidence Report", help="Download evidence report"):
+                            try:
+                                if st.session_state.evidence_report:
+                                    evidence_capture = EvidenceCapture()
+                                    evidence_html = evidence_capture.export_evidence_report(
+                                        st.session_state.evidence_report.analysis_id, 'html'
+                                    )
+                                    
+                                    st.download_button(
+                                        label="📈 Download Evidence Report",
+                                        data=evidence_html,
+                                        file_name=f"evidence_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                                        mime="text/html",
+                                        help="Download detailed evidence report"
+                                    )
+                                else:
+                                    st.warning("No evidence report available")
+                            except Exception as e:
+                                st.error(f"Error generating evidence report: {str(e)}")
+                    
+                    st.markdown("---")
     
     # Display results
     if st.session_state.analysis_complete:
