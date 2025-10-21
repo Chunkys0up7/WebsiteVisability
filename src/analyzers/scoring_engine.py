@@ -63,6 +63,11 @@ class ScoringEngine:
         """
         logger.info("Calculating scores...")
         
+        # Debug: Log analysis result details for consistency checking
+        logger.debug(f"Analysis result status: {analysis_result.status}")
+        logger.debug(f"Content analysis word count: {analysis_result.content_analysis.word_count if analysis_result.content_analysis else 'None'}")
+        logger.debug(f"Structure analysis semantic elements: {len(analysis_result.structure_analysis.semantic_elements) if analysis_result.structure_analysis else 'None'}")
+        
         # Calculate component scores
         static_content = self._score_static_content(analysis_result)
         semantic_html = self._score_semantic_html(analysis_result)
@@ -70,6 +75,14 @@ class ScoringEngine:
         meta_tags = self._score_meta_tags(analysis_result)
         javascript = self._score_javascript(analysis_result, comparison)
         crawler = self._score_crawler(analysis_result)
+        
+        # Debug: Log score components for consistency checking
+        logger.debug(f"Static content score: {static_content.score:.2f}")
+        logger.debug(f"Semantic HTML score: {semantic_html.score:.2f}")
+        logger.debug(f"Structured data score: {structured_data.score:.2f}")
+        logger.debug(f"Meta tags score: {meta_tags.score:.2f}")
+        logger.debug(f"JavaScript score: {javascript.score:.2f}")
+        logger.debug(f"Crawler score: {crawler.score:.2f}")
         
         # Calculate total scraper-friendliness score
         scraper_total = (
@@ -80,6 +93,8 @@ class ScoringEngine:
             javascript.score +
             crawler.score
         )
+        
+        logger.debug(f"Scraper total: {scraper_total:.2f}")
         
         scraper_breakdown = ScoreBreakdown(
             total_score=scraper_total,
@@ -101,6 +116,8 @@ class ScoringEngine:
             structured_data,
             meta_tags
         )
+        
+        logger.debug(f"LLM total: {llm_breakdown.total_score:.2f}")
         
         # Generate recommendations
         recommendations = self._generate_recommendations(
