@@ -17,6 +17,7 @@ from src.analyzers.evidence_capture import EvidenceCapture
 from src.analyzers.enhanced_llm_analyzer import EnhancedLLMAccessibilityAnalyzer
 from src.analyzers.llms_txt_analyzer import LLMsTxtAnalyzer
 from src.utils.validators import URLValidator
+from src.utils.report_generator import ComprehensiveReportGenerator, ReportData
 from src.models.analysis_result import AnalysisResult
 from src.models.scoring_models import Score
 
