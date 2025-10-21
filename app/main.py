@@ -268,6 +268,22 @@ st.markdown("""
         /* Text improvements for better readability */
         .stMarkdown {
             color: #1a1a1a;
+            line-height: 1.7;
+        }
+        
+        /* All text elements */
+        p, div, span, li {
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+        
+        /* Headers and titles */
+        h1, h2, h3, h4, h5, h6 {
+            color: #1a1a1a;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
         }
         
         /* Metric improvements */
@@ -278,28 +294,55 @@ st.markdown("""
             border: 1px solid #e5e7eb;
         }
 
-        /* Info boxes improvements */
+        /* Info boxes improvements - Enhanced readability */
+        .stAlert {
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-left: 4px solid;
+        }
         .stInfo {
             background-color: #eff6ff;
-            border-left: 4px solid #2563eb;
+            border-left-color: #2563eb;
+            color: #1e40af;
+        }
+        .stInfo .stMarkdown {
+            color: #1e40af;
         }
         .stSuccess {
             background-color: #f0fdf4;
-            border-left: 4px solid #059669;
+            border-left-color: #059669;
+            color: #065f46;
+        }
+        .stSuccess .stMarkdown {
+            color: #065f46;
         }
         .stWarning {
             background-color: #fffbeb;
-            border-left: 4px solid #d97706;
+            border-left-color: #d97706;
+            color: #92400e;
+        }
+        .stWarning .stMarkdown {
+            color: #92400e;
         }
         .stError {
             background-color: #fef2f2;
-            border-left: 4px solid #dc2626;
+            border-left-color: #dc2626;
+            color: #991b1b;
+        }
+        .stError .stMarkdown {
+            color: #991b1b;
         }
 
         /* Expander improvements */
         .streamlit-expanderHeader {
             font-weight: 600;
             color: #1a1a1a;
+            font-size: 1.1rem;
+        }
+        .streamlit-expanderContent {
+            color: #1a1a1a;
+            line-height: 1.6;
         }
 
         /* Code blocks */
@@ -307,6 +350,55 @@ st.markdown("""
             background-color: #f8fafc;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
+            color: #1a1a1a;
+        }
+        
+        /* Lists and bullet points */
+        ul, ol {
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+        li {
+            margin-bottom: 0.5rem;
+            color: #1a1a1a;
+        }
+        
+        /* Tables */
+        .stDataFrame {
+            color: #1a1a1a;
+        }
+        table {
+            color: #1a1a1a;
+        }
+        th, td {
+            color: #1a1a1a;
+            border-color: #e5e7eb;
+        }
+        
+        /* Streamlit specific elements */
+        .stSelectbox label,
+        .stTextInput label,
+        .stTextArea label,
+        .stNumberInput label,
+        .stCheckbox label {
+            color: #1a1a1a;
+            font-weight: 500;
+        }
+        
+        /* Sidebar text */
+        .css-1d391kg {
+            color: #1a1a1a;
+        }
+        .css-1d391kg .stMarkdown {
+            color: #1a1a1a;
+        }
+        
+        /* Empty state improvements */
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+            font-style: italic;
         }
 
         /* Dark mode support */
@@ -327,6 +419,44 @@ st.markdown("""
             }
             .sub-section-header {
                 color: #f1f5f9;
+            }
+            
+            /* Dark mode text elements */
+            .stMarkdown, p, div, span, li {
+                color: #f1f5f9;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                color: #f1f5f9;
+            }
+            .streamlit-expanderHeader,
+            .streamlit-expanderContent {
+                color: #f1f5f9;
+            }
+            .stCode {
+                background-color: #1e293b;
+                color: #f1f5f9;
+                border-color: #334155;
+            }
+            ul, ol, li {
+                color: #f1f5f9;
+            }
+            table, th, td {
+                color: #f1f5f9;
+                border-color: #334155;
+            }
+            .stSelectbox label,
+            .stTextInput label,
+            .stTextArea label,
+            .stNumberInput label,
+            .stCheckbox label {
+                color: #f1f5f9;
+            }
+            .css-1d391kg,
+            .css-1d391kg .stMarkdown {
+                color: #f1f5f9;
+            }
+            .empty-state {
+                color: #94a3b8;
             }
             .score-card {
                 background-color: #1e293b;
@@ -1481,27 +1611,92 @@ def main():
             st.markdown('<h2 class="section-header">💡 Optimization Recommendations</h2>', unsafe_allow_html=True)
             
             if st.session_state.score and st.session_state.score.recommendations:
-                for rec in st.session_state.score.recommendations:
-                    if rec.priority.value == "critical":
+                st.markdown("### 📋 Analysis Summary")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Recommendations", len(st.session_state.score.recommendations))
+                with col2:
+                    critical_count = len([r for r in st.session_state.score.recommendations if r.priority.value == "critical"])
+                    st.metric("Critical Issues", critical_count)
+                with col3:
+                    high_count = len([r for r in st.session_state.score.recommendations if r.priority.value == "high"])
+                    st.metric("High Priority", high_count)
+                
+                st.markdown("---")
+                
+                # Group recommendations by priority
+                critical_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "critical"]
+                high_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "high"]
+                medium_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "medium"]
+                low_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "low"]
+                
+                # Display critical recommendations first
+                if critical_recs:
+                    st.markdown("### 🚨 Critical Issues")
+                    for rec in critical_recs:
                         st.error(f"**{rec.priority.value.upper()}**: {rec.title}")
                         st.write(rec.description)
-                    elif rec.priority.value == "high":
+                        if rec.code_example:
+                            with st.expander("💻 Code Example"):
+                                st.code(rec.code_example, language="html")
+                        st.markdown("---")
+                
+                # Display high priority recommendations
+                if high_recs:
+                    st.markdown("### ⚠️ High Priority")
+                    for rec in high_recs:
                         st.warning(f"**{rec.priority.value.upper()}**: {rec.title}")
                         st.write(rec.description)
-                    else:
+                        if rec.code_example:
+                            with st.expander("💻 Code Example"):
+                                st.code(rec.code_example, language="html")
+                        st.markdown("---")
+                
+                # Display medium priority recommendations
+                if medium_recs:
+                    st.markdown("### 📝 Medium Priority")
+                    for rec in medium_recs:
                         st.info(f"**{rec.priority.value.upper()}**: {rec.title}")
                         st.write(rec.description)
-                    
-                    if rec.code_example:
-                        with st.expander("💻 Code Example"):
-                            st.code(rec.code_example, language="html")
-                    
-                    st.markdown("---")
+                        if rec.code_example:
+                            with st.expander("💻 Code Example"):
+                                st.code(rec.code_example, language="html")
+                        st.markdown("---")
+                
+                # Display low priority recommendations
+                if low_recs:
+                    st.markdown("### 💡 Low Priority")
+                    for rec in low_recs:
+                        st.info(f"**{rec.priority.value.upper()}**: {rec.title}")
+                        st.write(rec.description)
+                        if rec.code_example:
+                            with st.expander("💻 Code Example"):
+                                st.code(rec.code_example, language="html")
+                        st.markdown("---")
                 
                 if not st.session_state.score.recommendations:
                     st.success("🎉 No significant recommendations found - your site is well-optimized!")
             else:
-                st.info("No comprehensive scoring analysis available. Run **'Comprehensive Analysis'** to see optimization recommendations.")
+                st.markdown("### 📊 No Recommendations Available")
+                st.info("**To see optimization recommendations:**")
+                st.markdown("""
+                1. **Run a Comprehensive Analysis** - Select 'Comprehensive Analysis' from the sidebar
+                2. **Enter a valid URL** - Make sure the URL is accessible
+                3. **Wait for completion** - The analysis will generate specific recommendations
+                
+                **What you'll get:**
+                - 🚨 Critical issues that need immediate attention
+                - ⚠️ High priority improvements for better performance
+                - 📝 Medium priority optimizations
+                - 💡 Low priority enhancements
+                - 💻 Code examples for implementation
+                """)
+                
+                if st.session_state.analyzed_url:
+                    st.markdown(f"**Last analyzed:** `{st.session_state.analyzed_url}`")
+                    st.markdown(f"**Analysis type:** `{st.session_state.last_analysis_type}`")
+                else:
+                    st.markdown("**No URL has been analyzed yet.**")
         
         with tabs[14]:  # Export Report
             st.markdown('<h2 class="section-header">📥 Export Analysis Report</h2>', unsafe_allow_html=True)
