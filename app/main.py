@@ -426,12 +426,13 @@ def main():
                     st.markdown("---")
                     st.subheader("📥 Download Comprehensive Report")
                     
-                    # Create report data once
+                    # Create report data once with consistent analysis ID
+                    analysis_id = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
                     report_data = ReportData(
                         url=st.session_state.analyzed_url,
                         analysis_type=analysis_type,
                         timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                        analysis_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                        analysis_id=analysis_id,
                         static_result=st.session_state.static_result,
                         dynamic_result=st.session_state.dynamic_result,
                         comparison=st.session_state.comparison,
@@ -501,7 +502,7 @@ def main():
                                 st.download_button(
                                     label="📈 Evidence Report",
                                     data=evidence_html,
-                                    file_name=f"evidence_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                                    file_name=f"evidence_report_{st.session_state.evidence_report.analysis_id}.html",
                                     mime="text/html",
                                     help="Download detailed evidence report"
                                 )
