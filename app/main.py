@@ -893,7 +893,7 @@ def main():
                 st.markdown('<h3 class="sub-section-header">🤖 LLM Crawler Capabilities</h3>', unsafe_allow_html=True)
                 
                 for crawler_name, capability in report.crawler_analysis.items():
-                    with st.expander(f"**{capability.name}** - Score: {capability.accessibility_score:.1f}/100"):
+                    with st.expander(f"**{capability.name}**"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
