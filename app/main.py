@@ -426,46 +426,46 @@ def main():
         # Quick Overview
         if st.session_state.score:
             score = st.session_state.score
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            scraper_score = score.scraper_friendliness.total_score
-            scraper_grade = score.scraper_friendliness.grade
-            score_class = get_score_color_class(scraper_score)
-            st.metric(
-                "Scraper Friendliness",
-                f"{scraper_score:.1f}/100",
-                delta=f"Grade: {scraper_grade}"
-            )
-        
-        with col2:
-            llm_score = score.llm_accessibility.total_score
-            llm_grade = score.llm_accessibility.grade
-            score_class = get_score_color_class(llm_score)
-            st.metric(
-                "LLM Accessibility",
-                f"{llm_score:.1f}/100",
-                delta=f"Grade: {llm_grade}"
-            )
-        
-        with col3:
-            if st.session_state.static_result:
-                word_count = st.session_state.static_result.content_analysis.word_count
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                scraper_score = score.scraper_friendliness.total_score
+                scraper_grade = score.scraper_friendliness.grade
+                score_class = get_score_color_class(scraper_score)
                 st.metric(
-                    "Word Count",
-                    f"{word_count:,}",
-                    help="Total words found in static HTML"
+                    "Scraper Friendliness",
+                    f"{scraper_score:.1f}/100",
+                    delta=f"Grade: {scraper_grade}"
                 )
         
-        with col4:
-            recommendations_count = len(score.recommendations)
-            critical_count = len([r for r in score.recommendations if r.priority.value == "critical"])
-            st.metric(
-                "Recommendations",
-                recommendations_count,
-                delta=f"{critical_count} critical" if critical_count > 0 else "No critical issues"
-            )
+            with col2:
+                llm_score = score.llm_accessibility.total_score
+                llm_grade = score.llm_accessibility.grade
+                score_class = get_score_color_class(llm_score)
+                st.metric(
+                    "LLM Accessibility",
+                    f"{llm_score:.1f}/100",
+                    delta=f"Grade: {llm_grade}"
+                )
+        
+            with col3:
+                if st.session_state.static_result:
+                    word_count = st.session_state.static_result.content_analysis.word_count
+                    st.metric(
+                        "Word Count",
+                        f"{word_count:,}",
+                        help="Total words found in static HTML"
+                    )
+        
+            with col4:
+                recommendations_count = len(score.recommendations)
+                critical_count = len([r for r in score.recommendations if r.priority.value == "critical"])
+                st.metric(
+                    "Recommendations",
+                    recommendations_count,
+                    delta=f"{critical_count} critical" if critical_count > 0 else "No critical issues"
+                )
         
         else:
             # Show analysis type specific overview when no score is available
