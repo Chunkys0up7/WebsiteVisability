@@ -410,7 +410,7 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 if st.session_state.crawler_analysis:
                     # Convert CrawlerAnalysisResult objects to AnalysisEvidence objects
                     for crawler_type, crawler_result in st.session_state.crawler_analysis.items():
-                        evidence = evidence_capture.capture_evidence(
+                        evidence = evidence_capture.capture_analysis_evidence(
                             url=url,
                             crawler_type=crawler_type,
                             analysis_result=crawler_result,
