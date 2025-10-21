@@ -7,10 +7,11 @@ Web interface for analyzing website scraper-friendliness and LLM accessibility.
 import streamlit as st
 import logging
 from datetime import datetime
+import time
+import pandas as pd
 
 from src.analyzers import StaticAnalyzer, DynamicAnalyzer, ContentComparator, ScoringEngine
 from src.analyzers.llm_accessibility_analyzer import LLMAccessibilityAnalyzer
-from src.analyzers.separate_analyzer import SeparateAnalyzer # Not used in code, but imported. Keep for now.
 from src.analyzers.ssr_detector import SSRDetector
 from src.analyzers.web_crawler_analyzer import WebCrawlerAnalyzer
 from src.analyzers.evidence_capture import EvidenceCapture
@@ -43,6 +44,7 @@ st.markdown("""
     .stApp {
         background-color: #f8f9fa; /* Light background for the app */
         color: #333;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
     /* Main Header */
@@ -88,6 +90,10 @@ st.markdown("""
         margin-bottom: 1.5rem; /* More spacing between cards */
         box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Stronger, but still soft shadow */
         transition: transform 0.2s ease-in-out; /* Subtle hover effect */
+        height: 100%; /* Ensure consistent height in columns */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
     .score-card:hover {
         transform: translateY(-3px);
@@ -126,6 +132,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px; /* Increased gap */
         justify-content: center; /* Center tabs */
+        margin-bottom: 2rem; /* More space below tabs */
     }
     .stTabs [data-baseweb="tab"] {
         padding-right: 25px; /* More padding */
@@ -133,6 +140,7 @@ st.markdown("""
         font-size: 1.05rem; /* Slightly larger text */
         font-weight: 500;
         color: #666;
+        transition: color 0.2s ease-in-out, border-bottom 0.2s ease-in-out;
     }
     .stTabs [data-baseweb="tab"]:hover {
         color: #667eea; /* Hover color */
@@ -207,6 +215,8 @@ def initialize_session_state():
         st.session_state.llms_txt_analysis = None
     if 'last_analysis_type' not in st.session_state:
         st.session_state.last_analysis_type = None
+    if 'analysis_duration' not in st.session_state:
+        st.session_state.analysis_duration = 0.0
 
 def _get_grade(score: float) -> str:
     """Calculate letter grade from score"""
@@ -248,16 +258,107 @@ def get_score_color_class(score: float) -> str:
     else:
         return "score-poor"
 
+def render_score_card(header: str, value: any, grade: str, score: float = None, is_na: bool = False, na_reason: str = None):
+    """Renders a stylized score card."""
+    if is_na:
+        score_class = "neutral"
+        value_display = "N/A"
+        grade_display = na_reason if na_reason else "No Data"
+    else:
+        score_class = get_score_color_class(score).replace('score-', '')
+        value_display = f"{value}"
+        grade_display = f"Grade: {grade}"
+
+    st.markdown(f"""
+    <div class="score-card {score_class}">
+        <div class="score-card-header">{header}</div>
+        <div class="score-value">{value_display}</div>
+        <div class="score-grade">{grade_display}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def display_recommendations_table(recommendations: list):
+    """Displays recommendations in a sortable/filterable dataframe and then in detailed expanders."""
+    if not recommendations:
+        st.info("No recommendations found.")
+        return
+
+    # Create a DataFrame for better display
+    data = []
+    priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    for rec in recommendations:
+        data.append({
+            "Priority_Order": priority_order.get(rec.priority.value, 99),
+            "Priority": rec.priority.value.title(),
+            "Category": rec.category.replace('_', ' ').title(),
+            "Title": rec.title,
+            "Impact": rec.impact.value.title(),
+            "Difficulty": rec.difficulty.value.title(),
+        })
+    
+    df = pd.DataFrame(data).sort_values(by="Priority_Order").drop(columns="Priority_Order")
+    
+    # Custom styling for priority column
+    def color_priority(val):
+        color_map = {
+            'Critical': '#EF4444', # Red
+            'High': '#F59E0B',    # Orange
+            'Medium': '#F1C40F',  # Yellow-Orange
+            'Low': '#10B981'      # Green
+        }
+        return f'background-color: {color_map.get(val, "transparent")}; color: white; font-weight: bold;'
+
+    st.markdown('<h3 class="sub-section-header">Summary Table of Recommendations</h3>', unsafe_allow_html=True)
+    st.dataframe(
+        df.style.applymap(color_priority, subset=['Priority']),
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Priority": st.column_config.Column("Priority", width="small", help="Severity of the recommendation"),
+            "Category": st.column_config.Column("Category", width="medium", help="Related aspect of the website"),
+            "Title": st.column_config.Column("Recommendation Title", width="large", help="Concise summary of the recommendation"),
+            "Impact": st.column_config.Column("Impact", width="small", help="Potential benefit if implemented"),
+            "Difficulty": st.column_config.Column("Difficulty", width="small", help="Estimated effort to implement"),
+        }
+    )
+
+    st.markdown("---")
+    st.markdown('<h3 class="sub-section-header">Detailed Recommendations</h3>', unsafe_allow_html=True)
+    
+    # Display details in expanders, ordered by priority
+    for rec in sorted(recommendations, key=lambda r: priority_order.get(r.priority.value, 99)):
+        with st.expander(f"**{rec.priority.value.upper()}**: {rec.title} (**Category**: {rec.category.replace('_', ' ').title()})"):
+            st.markdown(rec.description)
+            col_diff, col_impact = st.columns(2)
+            with col_diff:
+                st.markdown(f"**Difficulty**: `{rec.difficulty.value.title()}`")
+            with col_impact:
+                st.markdown(f"**Impact**: `{rec.impact.value.title()}`")
+            
+            if rec.code_example:
+                st.markdown("---")
+                st.markdown("**💻 Code Example:**")
+                st.code(rec.code_example, language="html")
+            if rec.resources:
+                st.markdown("---")
+                st.markdown("**📚 Resources:**")
+                for resource in rec.resources:
+                    st.markdown(f"- [{resource}]({resource})")
+
 def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str = "Comprehensive Analysis", 
                     crawler_types: list = None, capture_evidence: bool = True):
     """Perform website analysis based on selected focus"""
+    start_time = time.time()  # Capture start time
     try:
         # Use st.status for granular progress feedback
         with st.status("🚀 Starting website analysis...", expanded=True) as status:
+            st.session_state.analysis_complete = False  # Reset analysis state
+            
             # Always need static analysis as base for most analysis types
             static_result = None
             if analysis_type in ["Comprehensive Analysis", "LLM Accessibility Only", "Web Crawler Testing", "SSR Detection Only"]:
-                status.update(label="🔍 Performing static analysis...", state="running")
+                status.update(label="🌐 Fetching initial page content and performing static analysis...", state="running",
+                              state_tooltip="Retrieving HTML, CSS, and basic metadata.")
                 static_analyzer = StaticAnalyzer(timeout=30)
                 static_result = static_analyzer.analyze(url)
                 
@@ -272,7 +373,8 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             # Dynamic Analysis (only for Comprehensive Analysis)
             dynamic_result = None
             if analysis_type == "Comprehensive Analysis" and analyze_dynamic:
-                status.update(label="🌐 Performing dynamic analysis (rendering with browser)...", state="running")
+                status.update(label="⚙️ Launching headless browser for dynamic rendering (JavaScript execution)...", state="running",
+                              state_tooltip="This simulates a modern browser, capturing content loaded by JavaScript.")
                 try:
                     dynamic_analyzer = DynamicAnalyzer(timeout=30, headless=True)
                     dynamic_result = dynamic_analyzer.analyze(url)
@@ -291,7 +393,8 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             # Content Comparison (only for Comprehensive Analysis with dynamic results)
             comparison = None
             if analysis_type == "Comprehensive Analysis" and dynamic_result:
-                status.update(label="📊 Comparing static vs dynamic content...", state="running")
+                status.update(label="📊 Comparing static vs dynamic content to identify JS-dependent content...", state="running",
+                              state_tooltip="Highlighting differences between initial HTML and rendered content.")
                 comparator = ContentComparator()
                 comparison = comparator.compare(static_result, dynamic_result)
                 st.session_state.comparison = comparison
@@ -299,19 +402,22 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             
             # LLM Accessibility Analysis (for Comprehensive Analysis and LLM Accessibility Only)
             if analysis_type in ["Comprehensive Analysis", "LLM Accessibility Only"]:
-                status.update(label="🤖 Analyzing LLM accessibility...", state="running")
+                status.update(label="🤖 Analyzing LLM accessibility from static content...", state="running",
+                              state_tooltip="Assessing content discoverability for LLMs without JS execution.")
                 llm_analyzer = LLMAccessibilityAnalyzer()
                 llm_report = llm_analyzer.analyze(static_result)
                 st.session_state.llm_report = llm_report
                 logger.info(f"LLM accessibility analysis completed for {url}")
                 
-                status.update(label="🔬 Performing enhanced LLM analysis...", state="running")
+                status.update(label="🔬 Performing enhanced LLM analysis for deep insights...", state="running",
+                              state_tooltip="Evaluating semantic structure, chunking, and rendering impact for LLMs.")
                 enhanced_llm_analyzer = EnhancedLLMAccessibilityAnalyzer()
                 enhanced_llm_report = enhanced_llm_analyzer.analyze(static_result)
                 st.session_state.enhanced_llm_report = enhanced_llm_report
                 logger.info(f"Enhanced LLM analysis completed for {url}")
                 
-                status.update(label="📄 Analyzing llms.txt file...", state="running")
+                status.update(label="📄 Analyzing llms.txt file for AI directives...", state="running",
+                              state_tooltip="Checking for the presence and content of llms.txt at the site root.")
                 llms_txt_analyzer = LLMsTxtAnalyzer()
                 llms_txt_analysis = llms_txt_analyzer.analyze(url)
                 st.session_state.llms_txt_analysis = llms_txt_analysis
@@ -319,7 +425,8 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             
             # SSR Detection
             if analysis_type in ["Comprehensive Analysis", "SSR Detection Only"]:
-                status.update(label="🔍 Detecting SSR patterns...", state="running")
+                status.update(label="🔍 Detecting Server-Side Rendering (SSR) patterns...", state="running",
+                              state_tooltip="Identifying if content is rendered on the server before being sent to the client.")
                 ssr_detector = SSRDetector()
                 ssr_detection = ssr_detector.detect_ssr(static_result.content_analysis.text_content if static_result and static_result.content_analysis else "", 
                                                         static_result.javascript_analysis if static_result else None)
@@ -335,7 +442,8 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 crawler_results = {}
                 
                 for crawler_type in crawler_types:
-                    status.update(label=f"🕷️ Testing {crawler_type} accessibility...", state="running")
+                    status.update(label=f"🕷️ Testing {crawler_type.replace('_', ' ').title()} accessibility...", state="running",
+                                  state_tooltip=f"Simulating how a '{crawler_type}' bot would perceive your content.")
                     try:
                         crawler_result = crawler_analyzer.analyze_crawler_accessibility(url, crawler_type, static_result)
                         crawler_results[crawler_type] = crawler_result
@@ -348,27 +456,17 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             
             # Evidence Capture (only if enabled)
             if capture_evidence:
-                status.update(label="📊 Capturing evidence and generating reports...", state="running")
+                status.update(label="📊 Capturing evidence and generating reports...", state="running",
+                              state_tooltip="Consolidating findings into a comprehensive evidence report.")
                 evidence_capture = EvidenceCapture()
                 
                 evidence_data = {}
                 if st.session_state.crawler_analysis:
                     evidence_data.update(st.session_state.crawler_analysis)
+                
+                # --- Simplified evidence data creation for LLM and SSR ---
                 if st.session_state.llm_report:
-                    # Convert LLM recommendations to priority-based issues for evidence report
-                    llm_issues = []
-                    if st.session_state.llm_report.recommendations:
-                        for rec in st.session_state.llm_report.recommendations:
-                            if rec.startswith("CRITICAL"):
-                                llm_issues.append(f"CRITICAL: {rec}")
-                            elif rec.startswith("HIGH"):
-                                llm_issues.append(f"HIGH: {rec}")
-                            elif rec.startswith("MEDIUM"):
-                                llm_issues.append(f"MEDIUM: {rec}")
-                            else:
-                                llm_issues.append(f"LOW: {rec}")
-                    
-                    llm_evidence = type('obj', (object,), {
+                    llm_evidence = {
                         'crawler_name': 'LLM Analysis',
                         'crawler_type': 'LLM Analysis',
                         'accessibility_score': st.session_state.llm_report.overall_score if st.session_state.llm_report else 0,
@@ -376,18 +474,12 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                         'content_inaccessible': {'javascript_dependent_content': {'available': False}},
                         'evidence': [f"LLM accessibility score: {st.session_state.llm_report.overall_score:.1f}"] if st.session_state.llm_report else [],
                         'recommendations': st.session_state.llm_report.recommendations if st.session_state.llm_report else [],
-                        'accessibility_issues': llm_issues
-                    })()
-                    evidence_data['llm_analysis'] = llm_evidence
+                        'accessibility_issues': st.session_state.llm_report.limitations if st.session_state.llm_report else []
+                    }
+                    evidence_data['llm_analysis'] = type('obj', (object,), llm_evidence)()  # Convert dict to object
+                
                 if st.session_state.ssr_detection:
-                    # Convert SSR detection to priority-based issues for evidence report
-                    ssr_issues = []
-                    if not st.session_state.ssr_detection.is_ssr:
-                        ssr_issues.append("HIGH: SSR not detected - consider implementing server-side rendering for better LLM accessibility")
-                    else:
-                        ssr_issues.append("LOW: SSR detected - good for LLM accessibility")
-                    
-                    ssr_evidence = type('obj', (object,), {
+                    ssr_evidence = {
                         'crawler_name': 'SSR Detection',
                         'crawler_type': 'SSR Detection',
                         'accessibility_score': st.session_state.ssr_detection.confidence * 100,
@@ -395,9 +487,10 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                         'content_inaccessible': {'rendering_type': st.session_state.ssr_detection.rendering_type},
                         'evidence': st.session_state.ssr_detection.evidence,
                         'recommendations': ['SSR detection completed'] if st.session_state.ssr_detection.is_ssr else ['Consider implementing SSR'],
-                        'accessibility_issues': ssr_issues
-                    })()
-                    evidence_data['ssr_detection'] = ssr_evidence
+                        'accessibility_issues': ['SSR not detected'] if not st.session_state.ssr_detection.is_ssr else []
+                    }
+                    evidence_data['ssr_detection'] = type('obj', (object,), ssr_evidence)()  # Convert dict to object
+                # --- End simplified evidence data creation ---
                 
                 if evidence_data:
                     evidence_report = evidence_capture.create_evidence_report(url, evidence_data)
@@ -408,17 +501,22 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             
             # Scoring (only for Comprehensive Analysis)
             if analysis_type == "Comprehensive Analysis":
-                status.update(label="⚡ Calculating scores and generating recommendations...", state="running")
+                status.update(label="⚡ Calculating scores and generating recommendations...", state="running",
+                              state_tooltip="Aggregating all analysis results to provide a comprehensive score and actionable insights.")
                 scoring_engine = ScoringEngine()
                 score = scoring_engine.calculate_score(static_result, comparison)
                 st.session_state.score = score
                 logger.info(f"Scoring completed for {url}")
             else:
-                st.session_state.score = None # Clear score if not comprehensive
+                st.session_state.score = None  # Clear score if not comprehensive
             
             st.session_state.analysis_complete = True
             st.session_state.analyzed_url = url
-            st.session_state.last_analysis_type = analysis_type # Store analysis type for consistent display
+            st.session_state.last_analysis_type = analysis_type  # Store analysis type for consistent display
+            
+            end_time = time.time()  # Capture end time
+            st.session_state.analysis_duration = end_time - start_time
+            
             status.update(label="✅ Analysis complete!", state="complete", expanded=False)
             return True
         
@@ -426,6 +524,7 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
         status.update(label="❌ Analysis failed!", state="error")
         st.error(f"❌ Analysis failed: {str(e)}")
         logger.error(f"Analysis error for {url}: {e}")
+        st.session_state.analysis_complete = False
         return False
 
 def main():
@@ -468,27 +567,27 @@ def main():
                 )
             
             st.subheader("3. Advanced Options")
-            
-            # Dynamic Analysis (Conditional & Explained)
-            analyze_dynamic = False # Default to False
-            if analysis_type == "Comprehensive Analysis":
-                analyze_dynamic_disabled_reason = "Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Static analysis provides comprehensive LLM accessibility insights."
-                analyze_dynamic = st.checkbox(
-                    "Include dynamic analysis (renders content with browser)",
-                    value=False,
-                    disabled=True, # Keeping original disabled state
-                    help=f"Dynamic analysis fetches content after JavaScript execution. {analyze_dynamic_disabled_reason}"
+            with st.expander("Advanced Analysis Settings", expanded=False):
+                # Dynamic Analysis (Conditional & Explained)
+                analyze_dynamic = False # Default to False
+                if analysis_type == "Comprehensive Analysis":
+                    analyze_dynamic_disabled_reason = "Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Static analysis provides comprehensive LLM accessibility insights."
+                    analyze_dynamic = st.checkbox(
+                        "Include dynamic analysis (renders content with browser)",
+                        value=False,
+                        disabled=True, # Keeping original disabled state
+                        help=f"Dynamic analysis fetches content after JavaScript execution. {analyze_dynamic_disabled_reason}"
+                    )
+                    if analyze_dynamic_disabled_reason: # Display info if it's disabled for a reason
+                        st.info(f"⚠️ {analyze_dynamic_disabled_reason}")
+                else:
+                    st.info("Dynamic analysis is only applicable for 'Comprehensive Analysis'.")
+                
+                capture_evidence = st.checkbox(
+                    "Generate Detailed Evidence Report",
+                    value=True,
+                    help="Enable to capture detailed data points for a comprehensive evidence report."
                 )
-                if analyze_dynamic_disabled_reason: # Display info if it's disabled for a reason
-                    st.info(f"⚠️ {analyze_dynamic_disabled_reason}")
-            else:
-                st.info("Dynamic analysis is only applicable for 'Comprehensive Analysis'.")
-            
-            capture_evidence = st.checkbox(
-                "Generate Detailed Evidence Report",
-                value=True,
-                help="Enable to capture detailed data points for a comprehensive evidence report."
-            )
             
             st.markdown("---")
             analyze_button = st.form_submit_button("🚀 Start Analysis", type="primary", use_container_width=True)
@@ -553,130 +652,58 @@ def main():
         # Consistent Quick Overview with custom scorecards
         col1, col2, col3, col4 = st.columns(4)
         
+        # --- Refactored Score Card Rendering ---
         with col1:
             if st.session_state.score:
                 scraper_score = st.session_state.score.scraper_friendliness.total_score
                 scraper_grade = st.session_state.score.scraper_friendliness.grade
-                score_class = get_score_color_class(scraper_score).replace('score-', '')
-                st.markdown(f"""
-                <div class="score-card {score_class}">
-                    <div class="score-card-header">Scraper Friendliness</div>
-                    <div class="score-value">{scraper_score:.1f}/100</div>
-                    <div class="score-grade">Grade: {scraper_grade}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            elif st.session_state.last_analysis_type in ["Web Crawler Testing", "SSR Detection Only", "LLM Accessibility Only"]:
-                st.markdown(f"""
-                <div class="score-card neutral">
-                    <div class="score-card-header">Scraper Friendliness</div>
-                    <div class="score-value">N/A</div>
-                    <div class="score-grade">Not in focus</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else: # Should not happen if analysis_complete is True, but as fallback
-                st.markdown(f"""
-                <div class="score-card neutral">
-                    <div class="score-card-header">Scraper Friendliness</div>
-                    <div class="score-value">--</div>
-                    <div class="score-grade">No data</div>
-                </div>
-                """, unsafe_allow_html=True)
+                render_score_card("Scraper Friendliness", f"{scraper_score:.1f}/100", scraper_grade, scraper_score)
+            else:
+                render_score_card("Scraper Friendliness", None, None, is_na=True, 
+                                  na_reason=f"N/A (Focus: {st.session_state.last_analysis_type})")
 
         with col2:
             if st.session_state.score:
                 llm_score = st.session_state.score.llm_accessibility.total_score
                 llm_grade = st.session_state.score.llm_accessibility.grade
-                score_class = get_score_color_class(llm_score).replace('score-', '')
-                st.markdown(f"""
-                <div class="score-card {score_class}">
-                    <div class="score-card-header">LLM Accessibility</div>
-                    <div class="score-value">{llm_score:.1f}/100</div>
-                    <div class="score-grade">Grade: {llm_grade}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                render_score_card("LLM Accessibility", f"{llm_score:.1f}/100", llm_grade, llm_score)
             elif st.session_state.enhanced_llm_report:
                 llm_score = st.session_state.enhanced_llm_report.overall_score
                 llm_grade = st.session_state.enhanced_llm_report.grade
-                score_class = get_score_color_class(llm_score).replace('score-', '')
-                st.markdown(f"""
-                <div class="score-card {score_class}">
-                    <div class="score-card-header">Enhanced LLM Score</div>
-                    <div class="score-value">{llm_score:.1f}/100</div>
-                    <div class="score-grade">Grade: {llm_grade}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                render_score_card("Enhanced LLM Score", f"{llm_score:.1f}/100", llm_grade, llm_score)
             elif st.session_state.llm_report:
                 llm_score = st.session_state.llm_report.overall_score
                 llm_grade = st.session_state.llm_report.grade
-                score_class = get_score_color_class(llm_score).replace('score-', '')
-                st.markdown(f"""
-                <div class="score-card {score_class}">
-                    <div class="score-card-header">LLM Accessibility</div>
-                    <div class="score-value">{llm_score:.1f}/100</div>
-                    <div class="score-grade">Grade: {llm_grade}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                render_score_card("LLM Accessibility", f"{llm_score:.1f}/100", llm_grade, llm_score)
             else:
-                 st.markdown(f"""
-                <div class="score-card neutral">
-                    <div class="score-card-header">LLM Accessibility</div>
-                    <div class="score-value">N/A</div>
-                    <div class="score-grade">Not in focus</div>
-                </div>
-                """, unsafe_allow_html=True)
+                 render_score_card("LLM Accessibility", None, None, is_na=True, 
+                                   na_reason=f"N/A (Focus: {st.session_state.last_analysis_type})")
         
         with col3:
             if st.session_state.static_result and st.session_state.static_result.content_analysis:
                 word_count = st.session_state.static_result.content_analysis.word_count
-                st.markdown(f"""
-                <div class="score-card neutral">
-                    <div class="score-card-header">Total Word Count</div>
-                    <div class="score-value">{word_count:,}</div>
-                    <div class="score-grade">Static HTML</div>
-                </div>
-                """, unsafe_allow_html=True)
+                render_score_card("Total Word Count", f"{word_count:,}", "Static HTML Content", is_na=True, na_reason="Static HTML") # Neutral color
             else:
-                 st.markdown(f"""
-                <div class="score-card neutral">
-                    <div class="score-card-header">Total Word Count</div>
-                    <div class="score-value">--</div>
-                    <div class="score-grade">No data</div>
-                </div>
-                """, unsafe_allow_html=True)
+                 render_score_card("Total Word Count", None, None, is_na=True)
         
         with col4:
-            # Count recommendations from all sources for consistency
-            recommendations_count = 0
-            critical_count = 0
-            
-            # Count from scoring engine if available
-            if st.session_state.score and st.session_state.score.recommendations:
-                recommendations_count += len(st.session_state.score.recommendations)
-                critical_count += len([r for r in st.session_state.score.recommendations if r.priority.value == "critical"])
-            
-            # Count from LLM report if available
-            if st.session_state.llm_report and st.session_state.llm_report.recommendations:
-                recommendations_count += len(st.session_state.llm_report.recommendations)
-                critical_count += len([r for r in st.session_state.llm_report.recommendations if r.startswith("CRITICAL")])
-            
-            # Count from enhanced LLM report if available
-            if st.session_state.enhanced_llm_report and st.session_state.enhanced_llm_report.critical_recommendations:
-                recommendations_count += len(st.session_state.enhanced_llm_report.critical_recommendations)
-                critical_count += len(st.session_state.enhanced_llm_report.critical_recommendations)
-            
-            score_class = "poor" if critical_count > 0 else "excellent" if recommendations_count == 0 else "good"
-            st.markdown(f"""
-            <div class="score-card {score_class}">
-                <div class="score-card-header">Key Recommendations</div>
-                <div class="score-value">{recommendations_count}</div>
-                <div class="score-grade">Critical: {critical_count}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            if st.session_state.score:
+                recommendations_count = len(st.session_state.score.recommendations) if st.session_state.score else 0
+                critical_count = len([r for r in st.session_state.score.recommendations if r.priority.value == "critical"]) if st.session_state.score else 0
+                
+                score_for_card = 100 - (critical_count * 20 + recommendations_count) # Arbitrary scoring for card color
+                grade_for_card = _get_grade(score_for_card)
+                
+                render_score_card("Key Recommendations", recommendations_count, grade_for_card, score_for_card)
+            else:
+                render_score_card("Key Recommendations", None, None, is_na=True, na_reason="No comprehensive score")
+        # --- End Refactored Score Card Rendering ---
         
         st.markdown("---")
         
         # Detailed Results in Tabs
         tabs = st.tabs([
+            "🎯 Executive Summary", # New tab for executive summary
             "📊 Overview",
             "🤖 LLM Analysis", 
             "🔬 Enhanced LLM Analysis",
@@ -693,7 +720,56 @@ def main():
             "📥 Export Report" # New tab for downloads
         ])
         
-        with tabs[0]:  # Overview
+        with tabs[0]: # Executive Summary
+            st.markdown('<h2 class="section-header">🎯 Executive Summary & Key Takeaways</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.score:
+                score = st.session_state.score
+                scraper_score = score.scraper_friendliness.total_score
+                llm_score = score.llm_accessibility.total_score
+                
+                st.markdown(f"**Analysis for:** `{st.session_state.analyzed_url}`")
+                st.markdown(f"**Analysis Type:** `{st.session_state.last_analysis_type}`")
+                st.markdown(f"**Duration:** `{st.session_state.analysis_duration:.2f} seconds`")
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">Overall Performance Snapshot</h3>', unsafe_allow_html=True)
+                
+                col_snap1, col_snap2 = st.columns(2)
+                with col_snap1:
+                    render_score_card("Scraper Friendliness", f"{scraper_score:.1f}/100", score.scraper_friendliness.grade, scraper_score)
+                with col_snap2:
+                    render_score_card("LLM Accessibility", f"{llm_score:.1f}/100", score.llm_accessibility.grade, llm_score)
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">Top Critical Recommendations</h3>', unsafe_allow_html=True)
+                critical_recs = [r for r in score.recommendations if r.priority.value == "critical"]
+                if critical_recs:
+                    for i, rec in enumerate(critical_recs[:3]): # Show top 3 critical
+                        st.error(f"**{i+1}. {rec.title}** (Category: {rec.category.replace('_', ' ').title()})")
+                        st.write(rec.description)
+                        if i < len(critical_recs[:3]) - 1: st.markdown("---")
+                    if len(critical_recs) > 3:
+                        st.info(f"And {len(critical_recs) - 3} more critical recommendations. See 'Recommendations' tab for full list.")
+                else:
+                    st.success("🎉 No critical issues identified! Your site is performing well.")
+                
+                st.markdown("---")
+                
+                st.markdown('<h3 class="sub-section-header">Key Observations</h3>', unsafe_allow_html=True)
+                
+                if st.session_state.comparison and st.session_state.comparison.javascript_dependent:
+                    st.warning("⚠️ **JavaScript Dependency Detected:** A significant portion of your content loads dynamically via JavaScript, potentially limiting static scrapers and basic LLMs.")
+                elif st.session_state.ssr_detection and st.session_state.ssr_detection.is_ssr:
+                    st.success("✅ **Server-Side Rendering (SSR) in Use:** Your site appears to leverage SSR, which is excellent for scraper and LLM accessibility.")
+                else:
+                    st.info("ℹ️ No major JavaScript dependency issues or SSR detection noted. Further details in respective tabs.")
+                
+            else:
+                st.info("Please run a **'Comprehensive Analysis'** to generate a full Executive Summary. Currently showing results for: **" + st.session_state.last_analysis_type + "**")
+
+        with tabs[1]:  # Overview
             st.markdown('<h2 class="section-header">Detailed Analysis Breakdown</h2>', unsafe_allow_html=True)
             
             if st.session_state.score:
@@ -755,7 +831,7 @@ def main():
                                     st.markdown(f"- {issue}")
                         st.markdown("---")
             else:
-                st.info("Comprehensive Analysis required for a full score breakdown.")
+                st.info(f"**'Overview' tab is populated only after a 'Comprehensive Analysis'.** Please select this option from the sidebar to view full score breakdowns.")
                 if st.session_state.last_analysis_type:
                     st.markdown(f"Currently showing results for: **{st.session_state.last_analysis_type}**")
         
@@ -1619,50 +1695,18 @@ def main():
             else:
                 st.info("JavaScript analysis not available. Please run the analysis first (consider 'Comprehensive Analysis').")
         
-        with tabs[12]:  # Recommendations
+        with tabs[13]:  # Recommendations
             st.markdown('<h2 class="section-header">💡 Optimization Recommendations</h2>', unsafe_allow_html=True)
             
             if st.session_state.score and st.session_state.score.recommendations:
-                # Group by priority
-                critical = [r for r in st.session_state.score.recommendations if r.priority.value == "critical"]
-                high = [r for r in st.session_state.score.recommendations if r.priority.value == "high"]
-                medium = [r for r in st.session_state.score.recommendations if r.priority.value == "medium"]
-                low = [r for r in st.session_state.score.recommendations if r.priority.value == "low"]
+                display_recommendations_table(st.session_state.score.recommendations)
                 
-                def display_recommendations_group(recs, emoji, title_text, color_code):
-                    if recs:
-                        st.markdown(f'<h3 class="sub-section-header" style="color: {color_code};">{emoji} {title_text} ({len(recs)})</h3>', unsafe_allow_html=True)
-                        for i, rec in enumerate(recs):
-                            with st.expander(f"**{i+1}.** {rec.title} (**Category**: {rec.category.replace('_', ' ').title()})"):
-                                st.markdown(rec.description)
-                                col_diff, col_impact = st.columns(2)
-                                with col_diff:
-                                    st.markdown(f"**Difficulty**: `{rec.difficulty.value.title()}`")
-                                with col_impact:
-                                    st.markdown(f"**Impact**: `{rec.impact.value.title()}`")
-                                
-                                if rec.code_example:
-                                    st.markdown("---")
-                                    st.markdown("**💻 Code Example:**")
-                                    st.code(rec.code_example, language="html")
-                                if rec.resources:
-                                    st.markdown("---")
-                                    st.markdown("**📚 Resources:**")
-                                    for resource in rec.resources:
-                                        st.markdown(f"- [{resource}]({resource})")
-                                # No explicit divider needed inside expander, Streamlit handles it well
-                
-                display_recommendations_group(critical, "🚨", "Critical Issues", "#EF4444") # Red
-                display_recommendations_group(high, "⚠️", "High Priority Recommendations", "#F59E0B") # Orange
-                display_recommendations_group(medium, "💡", "Medium Priority Recommendations", "#F1C40F") # Yellow-Orange
-                display_recommendations_group(low, "🟢", "Low Priority Recommendations", "#10B981") # Green
-                
-                if not (critical or high or medium or low):
+                if not st.session_state.score.recommendations:
                     st.success("🎉 No significant recommendations found - your site is well-optimized!")
             else:
-                st.info("No comprehensive scoring analysis available. Run 'Comprehensive Analysis' to see optimization recommendations.")
+                st.info("No comprehensive scoring analysis available. Run **'Comprehensive Analysis'** to see optimization recommendations.")
         
-        with tabs[13]: # Export Report
+        with tabs[14]: # Export Report
             st.markdown('<h2 class="section-header">📥 Export Comprehensive Report</h2>', unsafe_allow_html=True)
             
             # Create report data once for download section
