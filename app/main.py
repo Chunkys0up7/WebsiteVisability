@@ -1477,7 +1477,7 @@ def main():
             col_breakdown1, col_breakdown2 = st.columns(2)
             
             with col_breakdown1:
-                with st.expander("📊 Scraper Friendliness Score Breakdown", expanded=False):
+                with st.expander("📊 Scraper Friendliness Score Breakdown", expanded=True):
                     score_obj = st.session_state.score.scraper_friendliness
                     
                     st.markdown(f"""
@@ -1486,7 +1486,7 @@ def main():
                     **Component Scores:**
                     """)
                     
-                    # Show each component with its score
+                    # Show each component with its score and details
                     components = [
                         ('static_content_quality', '📝 Static Content Quality'),
                         ('semantic_html_structure', '🏗️ Semantic HTML Structure'),
@@ -1500,18 +1500,36 @@ def main():
                         if hasattr(score_obj, attr_name):
                             component = getattr(score_obj, attr_name)
                             st.write(f"• {display_name}: **{component.score:.1f}/{component.max_score:.0f}** ({component.percentage:.0f}%)")
+                            if hasattr(component, 'details') and component.details:
+                                st.caption(f"  └─ {component.details}")
                     
                     st.markdown("---")
                     st.markdown(f"""
-                    **Formula:**
+                    **Calculation Method:**
                     ```
                     Total = Sum of all component scores
                     Final Score = (Total / Max Possible) × 100
+                    
+                    Each component is weighted based on importance:
+                    - Content Quality: 25 points max
+                    - Semantic Structure: 20 points max
+                    - Structured Data: 15 points max
+                    - Meta Tags: 15 points max
+                    - JS Dependency: 15 points max (penalty)
+                    - Crawler Access: 10 points max
                     ```
+                    """)
+                    
+                    st.markdown(f"""
+                    **Evidence:**
+                    - Analyzed {st.session_state.static_result.content_analysis.word_count if st.session_state.static_result else 'N/A'} words of content
+                    - Found {len(st.session_state.static_result.semantic_structure.semantic_tags) if st.session_state.static_result else 0} semantic HTML elements
+                    - Detected {len(st.session_state.static_result.structured_data.json_ld) if st.session_state.static_result else 0} JSON-LD items
+                    - Evaluated {len(st.session_state.static_result.meta_tags.all_meta_tags) if st.session_state.static_result else 0} meta tags
                     """)
             
             with col_breakdown2:
-                with st.expander("🤖 LLM Accessibility Score Breakdown", expanded=False):
+                with st.expander("🤖 LLM Accessibility Score Breakdown", expanded=True):
                     score_obj = st.session_state.score.llm_accessibility
                     
                     st.markdown(f"""
@@ -1520,7 +1538,7 @@ def main():
                     **Component Scores:**
                     """)
                     
-                    # Show each component with its score
+                    # Show each component with its score and details
                     components = [
                         ('static_content_quality', '📝 Content Quality'),
                         ('semantic_html_structure', '🏗️ Semantic Structure'),
@@ -1534,15 +1552,35 @@ def main():
                         if hasattr(score_obj, attr_name):
                             component = getattr(score_obj, attr_name)
                             st.write(f"• {display_name}: **{component.score:.1f}/{component.max_score:.0f}** ({component.percentage:.0f}%)")
+                            if hasattr(component, 'details') and component.details:
+                                st.caption(f"  └─ {component.details}")
                     
                     st.markdown("---")
                     st.markdown(f"""
-                    **Formula:**
+                    **Calculation Method:**
                     ```
                     Total = Sum of all component scores
                     Final Score = (Total / Max Possible) × 100
+                    
+                    Each component is weighted for LLM accessibility:
+                    - Content Quality: 30 points max (critical for LLMs)
+                    - Semantic Structure: 25 points max (helps understanding)
+                    - Structured Data: 20 points max (rich context)
+                    - Meta Tags: 15 points max (descriptions)
+                    - JS Dependency: 10 points max (penalty for SPA)
                     ```
                     """)
+                    
+                    if st.session_state.llm_report:
+                        llm_report = st.session_state.llm_report
+                        st.markdown(f"""
+                        **Evidence:**
+                        - LLMs can access {llm_report.accessible_content['text_content']['word_count']:,} words of text content
+                        - Found {len(llm_report.accessible_content['semantic_structure']['semantic_elements'])} semantic elements
+                        - Detected {len(llm_report.accessible_content['structured_data']['json_ld'])} JSON-LD schemas
+                        - Identified {len(llm_report.limitations)} accessibility limitations
+                        - **{llm_report.accessible_content['meta_information']['title'] and llm_report.accessible_content['meta_information']['description']}** meta coverage
+                        """)
             
             st.markdown("---")
         
@@ -2086,14 +2124,47 @@ def main():
             if st.session_state.llm_report:
                 llm_report = st.session_state.llm_report
                 
+                # Add methodology explanation
+                with st.expander("📋 Analysis Methodology - How We Determined LLM Access", expanded=False):
+                    st.markdown("""
+                    ### Our Testing Process:
+                    
+                    **1. Static HTML Fetch (Simulating LLM Crawlers)**
+                    - We fetch your website using user agents similar to ChatGPT, Claude, and other LLM crawlers
+                    - This request gets ONLY the initial HTML - no JavaScript execution
+                    - Similar to how search engines and AI systems read web pages
+                    
+                    **2. Content Extraction**
+                    - Parse all text content from HTML tags
+                    - Extract meta tags (title, description, Open Graph)
+                    - Identify structured data (JSON-LD, Microdata, RDFa)
+                    - Map semantic HTML structure (headers, nav, main, article)
+                    
+                    **3. JavaScript Analysis**
+                    - Detect single-page applications (React, Vue, Angular)
+                    - Identify AJAX/fetch requests that load content dynamically
+                    - Find CSS-hidden elements (display:none, visibility:hidden)
+                    - Locate content requiring user interaction
+                    
+                    **4. Scoring**
+                    - Weight each factor based on LLM accessibility impact
+                    - Compare against best practices and industry standards
+                    - Generate specific recommendations for improvement
+                    
+                    **Result:** The scores and findings below are based on what LLMs can ACTUALLY access when they fetch your page, not assumptions.
+                    """)
+                
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("LLM Accessibility Score", f"{llm_report.overall_score:.1f}/100",
-                             delta=f"Grade: {llm_report.grade}")
+                             delta=f"Grade: {llm_report.grade}",
+                             help="Based on analysis of static HTML content, semantic structure, and JavaScript dependencies")
                 with col2:
-                    st.metric("Accessible Content Categories", f"{len(llm_report.accessible_content)}")
+                    st.metric("Accessible Content Categories", f"{len(llm_report.accessible_content)}",
+                             help="Types of content LLMs can successfully read without JavaScript execution")
                 with col3:
-                    st.metric("Limitations Found", f"{len(llm_report.limitations)}")
+                    st.metric("Limitations Found", f"{len(llm_report.limitations)}",
+                             help="Specific issues preventing LLMs from accessing your full content")
                 
                 st.markdown("---")
                 
@@ -2284,27 +2355,62 @@ def main():
                                 else:
                                     st.info(f"💡 **{recommendation}**")
                             
-                            # Additional insights
-                            st.subheader("💡 Key Insights")
-                            st.markdown("""
-                            **What LLMs Can See:**
-                            - All visible text content (headings, paragraphs, links)
-                            - Meta tags (title, description, keywords)
-                            - Structured data (JSON-LD, Microdata, RDFa)
-                            - Semantic HTML elements
+                            # Evidence-based insights
+                            st.subheader("🔍 How We Determined What LLMs Can See")
                             
-                            **What LLMs Cannot See:**
-                            - JavaScript-executed content (React, Vue, Angular SPAs)
-                            - AJAX-loaded content
-                            - Dynamic forms and interactions
-                            - Client-side rendered content
-                            
-                            **Best Practices:**
-                            - Use server-side rendering (SSR) for critical content
-                            - Implement semantic HTML structure
-                            - Add JSON-LD structured data
-                            - Provide static HTML fallbacks for dynamic features
+                            st.markdown("**Analysis Method:**")
+                            st.info("""
+                            We simulated how LLMs fetch and parse web pages by:
+                            1. Making HTTP requests with LLM-like user agents (similar to ChatGPT, Claude)
+                            2. Parsing the initial HTML response WITHOUT executing JavaScript
+                            3. Extracting all text, meta tags, and structured data
+                            4. Measuring what's immediately available vs. what requires JavaScript
                             """)
+                            
+                            st.markdown("**Evidence from Your Website:**")
+                            
+                            col_ev1, col_ev2 = st.columns(2)
+                            
+                            with col_ev1:
+                                st.markdown("✅ **What We Found Accessible:**")
+                                if st.session_state.static_result:
+                                    static = st.session_state.static_result
+                                    st.success(f"📝 **{static.content_analysis.word_count:,} words** of text in initial HTML")
+                                    st.success(f"🏗️ **{len(static.semantic_structure.semantic_tags)} semantic elements** (header, nav, article, etc.)")
+                                    st.success(f"🏷️ **Title tag**: {'Present' if static.meta_tags.title else 'Missing'}")
+                                    st.success(f"📊 **{len(static.structured_data.json_ld)} JSON-LD schemas** providing context")
+                                    st.success(f"🔗 **{len(static.content_analysis.all_links)} links** for discovery")
+                            
+                            with col_ev2:
+                                st.markdown("❌ **What We Found Inaccessible:**")
+                                if st.session_state.static_result:
+                                    static = st.session_state.static_result
+                                    js_analysis = static.javascript_analysis
+                                    
+                                    if js_analysis.is_spa:
+                                        st.error(f"⚠️ **Single Page Application** detected - content requires JavaScript execution")
+                                    if js_analysis.total_scripts > 0:
+                                        st.warning(f"⚡ **{js_analysis.total_scripts} JavaScript files** - may hide dynamic content")
+                                    if js_analysis.frameworks_detected:
+                                        st.warning(f"🎨 **Frameworks**: {', '.join(js_analysis.frameworks_detected[:3])}")
+                                    if js_analysis.ajax_indicators:
+                                        st.error(f"🔄 **AJAX content** detected - won't load for LLMs")
+                                    
+                                    if not (js_analysis.is_spa or js_analysis.ajax_indicators):
+                                        st.success("✅ No major JavaScript-dependent content detected!")
+                            
+                            st.markdown("---")
+                            st.markdown("**Conclusion:**")
+                            if st.session_state.static_result:
+                                static = st.session_state.static_result
+                                content_ratio = (static.content_analysis.word_count / max(static.content_analysis.word_count + 500, 1)) * 100
+                                
+                                if content_ratio > 80 and not static.javascript_analysis.is_spa:
+                                    st.success(f"🎉 **{content_ratio:.0f}%** of your content is LLM-accessible! Your site is well-optimized for LLMs.")
+                                elif content_ratio > 50:
+                                    st.info(f"✅ **{content_ratio:.0f}%** of content is LLM-accessible. Consider reducing JavaScript dependency for better coverage.")
+                                else:
+                                    st.warning(f"⚠️ Only **~{content_ratio:.0f}%** of content is immediately LLM-accessible. Consider implementing SSR or static HTML fallbacks.")
                             
                             # Search Simulation Section
                             st.markdown("---")
