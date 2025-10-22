@@ -618,37 +618,70 @@ def render_comparison_tab():
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("""
-            <div class="content-card">
-                <h4>🔍 Scraper Friendliness Score</h4>
-                <p><strong>How we calculate this:</strong></p>
-                <ul>
-                    <li><strong>Content Quality (25%):</strong> Word count, semantic HTML structure, proper headings</li>
-                    <li><strong>Technical Structure (20%):</strong> Meta tags, structured data, clean HTML</li>
-                    <li><strong>Accessibility (20%):</strong> Alt text, proper links, semantic elements</li>
-                    <li><strong>Crawler Support (15%):</strong> robots.txt, sitemaps, proper redirects</li>
-                    <li><strong>Performance (10%):</strong> Page size, load time, efficient structure</li>
-                    <li><strong>JavaScript Impact (10%):</strong> Minimal JS dependency, server-side rendering</li>
-                </ul>
-                <p><strong>What this means:</strong> Higher scores indicate better accessibility for traditional web crawlers and search engines.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="content-card">', unsafe_allow_html=True)
+            st.markdown("#### 🔍 Scraper Friendliness Score Breakdown")
+            
+            score_obj = st.session_state.score.scraper_friendliness
+            st.markdown(f"**Total: {score_obj.total_score:.1f}/100 ({score_obj.grade})**")
+            st.markdown("---")
+            
+            # Component scores
+            components = [
+                ('static_content_quality', '📝 Content Quality'),
+                ('semantic_html_structure', '🏗️ Semantic Structure'),
+                ('structured_data_implementation', '📊 Structured Data'),
+                ('meta_tag_completeness', '🏷️ Meta Tags'),
+                ('javascript_dependency', '⚡ JavaScript Impact'),
+                ('crawler_accessibility', '🕷️ Crawler Access')
+            ]
+            
+            for attr_name, display_name in components:
+                if hasattr(score_obj, attr_name):
+                    component = getattr(score_obj, attr_name)
+                    st.write(f"**{display_name}:** {component.score:.1f}/{component.max_score:.0f} ({component.percentage:.0f}%)")
+                    if component.description:
+                        st.caption(f"└─ {component.description}")
+                    if component.issues:
+                        for issue in component.issues[:1]:
+                            st.caption(f"   ⚠️ {issue}")
+                    if component.strengths:
+                        for strength in component.strengths[:1]:
+                            st.caption(f"   ✅ {strength}")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
         
         with col2:
-            st.markdown("""
-            <div class="content-card">
-                <h4>🤖 LLM Accessibility Score</h4>
-                <p><strong>How we calculate this:</strong></p>
-                <ul>
-                    <li><strong>Content Visibility (30%):</strong> Text content accessible without JavaScript</li>
-                    <li><strong>Semantic Structure (25%):</strong> Clear headings, paragraphs, lists</li>
-                    <li><strong>Entity Recognition (20%):</strong> Structured data, meta descriptions</li>
-                    <li><strong>Context Clarity (15%):</strong> Clear page purpose, logical flow</li>
-                    <li><strong>Technical Accessibility (10%):</strong> Clean HTML, minimal dependencies</li>
-                </ul>
-                <p><strong>What this means:</strong> Higher scores indicate better content visibility for AI systems and LLMs.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="content-card">', unsafe_allow_html=True)
+            st.markdown("#### 🤖 LLM Accessibility Score Breakdown")
+            
+            score_obj = st.session_state.score.llm_accessibility
+            st.markdown(f"**Total: {score_obj.total_score:.1f}/100 ({score_obj.grade})**")
+            st.markdown("---")
+            
+            # Component scores
+            components = [
+                ('static_content_quality', '📝 Content Quality'),
+                ('semantic_html_structure', '🏗️ Semantic Structure'),
+                ('structured_data_implementation', '📊 Structured Data'),
+                ('meta_tag_completeness', '🏷️ Meta Tags'),
+                ('javascript_dependency', '⚡ JS Dependency'),
+                ('crawler_accessibility', '🤖 LLM Access')
+            ]
+            
+            for attr_name, display_name in components:
+                if hasattr(score_obj, attr_name):
+                    component = getattr(score_obj, attr_name)
+                    st.write(f"**{display_name}:** {component.score:.1f}/{component.max_score:.0f} ({component.percentage:.0f}%)")
+                    if component.description:
+                        st.caption(f"└─ {component.description}")
+                    if component.issues:
+                        for issue in component.issues[:1]:
+                            st.caption(f"   ⚠️ {issue}")
+                    if component.strengths:
+                        for strength in component.strengths[:1]:
+                            st.caption(f"   ✅ {strength}")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
     
     # LLM Visibility Explanation
     st.markdown("---")
@@ -793,18 +826,18 @@ def render_recommendations_tab():
         with col1:
             st.metric("Total Recommendations", len(st.session_state.score.recommendations))
         with col2:
-            critical_count = sum(1 for r in st.session_state.score.recommendations if r.priority == "CRITICAL")
+            critical_count = sum(1 for r in st.session_state.score.recommendations if r.priority.value == "critical")
             st.metric("Critical Issues", critical_count, delta="High priority", delta_color="inverse" if critical_count > 0 else "off")
         with col3:
-            high_count = sum(1 for r in st.session_state.score.recommendations if r.priority == "HIGH")
+            high_count = sum(1 for r in st.session_state.score.recommendations if r.priority.value == "high")
             st.metric("High Priority", high_count)
         
         st.markdown("---")
         
         # Group recommendations by priority
-        critical_recs = [r for r in st.session_state.score.recommendations if r.priority == "CRITICAL"]
-        high_recs = [r for r in st.session_state.score.recommendations if r.priority == "HIGH"]
-        medium_recs = [r for r in st.session_state.score.recommendations if r.priority == "MEDIUM"]
+        critical_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "critical"]
+        high_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "high"]
+        medium_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "medium"]
         
         if critical_recs:
             st.markdown("### 🚨 Critical Issues")
