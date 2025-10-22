@@ -1,26 +1,32 @@
 @echo off
-echo 🔍 Web Scraper ^& LLM Analyzer - Quick Start
-echo ============================================
+REM Start the Web Scraper & LLM Analyzer application
+
+echo.
+echo ========================================
+echo   Web Scraper ^& LLM Analyzer
+echo ========================================
 echo.
 
-REM Change to the correct directory
-cd /d "C:\Users\camer\Projects\GitHub\WebKnowledge\web_scraper_llm_analyzer"
-
-echo 📁 Current directory: %CD%
-echo.
-
-REM Check if the streamlined app exists
-if exist "app\main_streamlined.py" (
-    echo ✅ Found streamlined application
-    echo 🚀 Starting Streamlit application...
-    echo 🌐 The application will open in your browser at http://localhost:8501
-    echo ⏹️  Press Ctrl+C to stop the application
-    echo.
-    streamlit run app/main_streamlined.py
+REM Check if virtual environment exists
+if exist .venv\Scripts\activate.bat (
+    echo Activating virtual environment...
+    call .venv\Scripts\activate.bat
 ) else (
-    echo ❌ Error: app\main_streamlined.py not found
-    echo 📁 Make sure you're in the correct directory:
-    echo    C:\Users\camer\Projects\GitHub\WebKnowledge\web_scraper_llm_analyzer
-    echo.
+    echo WARNING: Virtual environment not found!
+    echo Please run: python -m venv .venv
+    echo Then: .venv\Scripts\activate
+    echo Then: pip install -r requirements.txt
     pause
+    exit /b 1
 )
+
+echo.
+echo Starting application...
+echo.
+echo Press Ctrl+C to stop the application
+echo.
+
+REM Run the Streamlit application
+python -m streamlit run app/main.py
+
+pause
