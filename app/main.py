@@ -1500,8 +1500,14 @@ def main():
                         if hasattr(score_obj, attr_name):
                             component = getattr(score_obj, attr_name)
                             st.write(f"• {display_name}: **{component.score:.1f}/{component.max_score:.0f}** ({component.percentage:.0f}%)")
-                            if hasattr(component, 'details') and component.details:
-                                st.caption(f"  └─ {component.details}")
+                            if hasattr(component, 'description') and component.description:
+                                st.caption(f"  └─ {component.description}")
+                            if hasattr(component, 'issues') and component.issues:
+                                for issue in component.issues[:2]:  # Show first 2 issues
+                                    st.caption(f"     ⚠️ {issue}")
+                            if hasattr(component, 'strengths') and component.strengths:
+                                for strength in component.strengths[:2]:  # Show first 2 strengths
+                                    st.caption(f"     ✅ {strength}")
                     
                     st.markdown("---")
                     st.markdown(f"""
@@ -1552,8 +1558,14 @@ def main():
                         if hasattr(score_obj, attr_name):
                             component = getattr(score_obj, attr_name)
                             st.write(f"• {display_name}: **{component.score:.1f}/{component.max_score:.0f}** ({component.percentage:.0f}%)")
-                            if hasattr(component, 'details') and component.details:
-                                st.caption(f"  └─ {component.details}")
+                            if hasattr(component, 'description') and component.description:
+                                st.caption(f"  └─ {component.description}")
+                            if hasattr(component, 'issues') and component.issues:
+                                for issue in component.issues[:2]:  # Show first 2 issues
+                                    st.caption(f"     ⚠️ {issue}")
+                            if hasattr(component, 'strengths') and component.strengths:
+                                for strength in component.strengths[:2]:  # Show first 2 strengths
+                                    st.caption(f"     ✅ {strength}")
                     
                     st.markdown("---")
                     st.markdown(f"""
@@ -2482,18 +2494,18 @@ def main():
                 with col1:
                     st.metric("Total Recommendations", len(st.session_state.score.recommendations))
                 with col2:
-                    critical_count = sum(1 for r in st.session_state.score.recommendations if r.priority == "CRITICAL")
+                    critical_count = sum(1 for r in st.session_state.score.recommendations if r.priority.value == "critical")
                     st.metric("Critical Issues", critical_count, delta="High priority", delta_color="inverse" if critical_count > 0 else "off")
                 with col3:
-                    high_count = sum(1 for r in st.session_state.score.recommendations if r.priority == "HIGH")
+                    high_count = sum(1 for r in st.session_state.score.recommendations if r.priority.value == "high")
                     st.metric("High Priority", high_count)
                 
                 st.markdown("---")
                 
                 # Group by priority
-                critical_recs = [r for r in st.session_state.score.recommendations if r.priority == "CRITICAL"]
-                high_recs = [r for r in st.session_state.score.recommendations if r.priority == "HIGH"]
-                medium_recs = [r for r in st.session_state.score.recommendations if r.priority == "MEDIUM"]
+                critical_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "critical"]
+                high_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "high"]
+                medium_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "medium"]
                 
                 # Critical Issues
                 if critical_recs:
