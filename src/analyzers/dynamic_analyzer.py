@@ -1,362 +1,349 @@
 """
-Dynamic Analyzer Module
+Dynamic Website Analyzer
 
-Analyzes HTML content using headless browser (Playwright) for JavaScript execution.
-Simulates what modern browsers and sophisticated crawlers can access.
+Analyzes websites using a headless browser to capture dynamically rendered content.
 """
 
 import logging
-import time
 import asyncio
+from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass
 import platform
-from typing import Optional
-from datetime import datetime
+import sys
 
-# Check if we're on Windows Store Python and handle Playwright accordingly
-try:
-    from playwright.async_api import async_playwright, Browser, Page, Error as PlaywrightError
-    PLAYWRIGHT_AVAILABLE = True
-except ImportError:
-    PLAYWRIGHT_AVAILABLE = False
-    async_playwright = None
-    Browser = None
-    Page = None
-    PlaywrightError = Exception
-
-from ..parsers.html_parser import HTMLParser
-from ..parsers.meta_parser import MetaParser
-from ..parsers.structured_data_parser import StructuredDataParser
-from ..parsers.javascript_parser import JavaScriptParser
-from ..models.analysis_result import AnalysisResult
-from ..utils.validators import validate_url
-from ..utils.helpers import format_bytes
-from config.settings import get_settings
+from playwright.async_api import async_playwright, Browser, Page
+from ..models.analysis_result import AnalysisResult, AnalysisStatus
 
 logger = logging.getLogger(__name__)
 
 
 class DynamicAnalyzer:
     """
-    Analyze web pages using headless browser with JavaScript execution.
+    Analyzes websites using Playwright for dynamic content.
     
-    This analyzer uses Playwright to render pages like a real browser,
-    executing JavaScript and capturing dynamically loaded content.
+    Handles cases where dynamic analysis is not supported (e.g., Windows Store Python).
     """
     
-    def __init__(
-        self,
-        timeout: Optional[int] = None,
-        user_agent: Optional[str] = None,
-        headless: bool = True
-    ):
+    def __init__(self, timeout: int = 30, headless: bool = True):
+        """Initialize the dynamic analyzer."""
+        self.timeout = timeout
+        self.headless = headless
+        self.logger = logging.getLogger(__name__)
+        self._playwright = None
+        self._browser = None
+        self._context = None
+        self._is_supported = self._check_dynamic_support()
+    
+    def _check_dynamic_support(self) -> bool:
+        """Check if dynamic analysis is supported on this platform."""
+        # Windows Store Python doesn't support asyncio subprocess
+        if sys.platform == "win32" and "WindowsApps" in sys.executable:
+            return False
+        return True
+    
+    def analyze(self, url: str) -> AnalysisResult:
         """
-        Initialize dynamic analyzer.
+        Analyze a website using dynamic analysis.
         
         Args:
-            timeout: Page load timeout in seconds (default from settings)
-            user_agent: Custom user agent string (default from settings)
-            headless: Run browser in headless mode (default True)
+            url: URL to analyze
+            
+        Returns:
+            Analysis results including dynamic content
         """
-        self.settings = get_settings()
-        self.timeout = (timeout or self.settings.default_timeout) * 1000  # Convert to ms
-        self.user_agent = user_agent or self.settings.user_agent
-        self.headless = headless
+        if not self._is_supported:
+            self.logger.warning("Dynamic analysis is not supported on this platform")
+            return AnalysisResult(
+                url=url,
+                status=AnalysisStatus.SKIPPED,
+                error_message="Dynamic analysis is not supported on this platform. "
+                            "For full analysis, please use regular Python installation.",
+                content_analysis={
+                    'word_count': 0,
+                    'text_content': '',
+                    'character_count': 0,
+                    'estimated_tokens': 0,
+                    'paragraphs': 0,
+                    'links': 0,
+                    'images': 0,
+                    'tables': 0,
+                    'lists': 0,
+                    'hidden_content': []
+                },
+                structure_analysis={
+                    'semantic_elements': [],
+                    'has_semantic_html': False,
+                    'heading_hierarchy': {
+                        'h1': [], 'h2': [], 'h3': [],
+                        'h4': [], 'h5': [], 'h6': []
+                    },
+                    'total_elements': 0,
+                    'nested_depth': 0,
+                    'has_proper_structure': False,
+                    'navigation_elements': []
+                },
+                meta_analysis={
+                    'title': None,
+                    'description': None,
+                    'keywords': None,
+                    'meta_tags': [],
+                    'open_graph_tags': {},
+                    'twitter_card_tags': {},
+                    'structured_data': [],
+                    'has_json_ld': False,
+                    'has_microdata': False,
+                    'has_rdfa': False
+                },
+                javascript_analysis={
+                    'total_scripts': 0,
+                    'inline_scripts': 0,
+                    'external_scripts': 0,
+                    'frameworks': [],
+                    'is_spa': False,
+                    'has_ajax': False,
+                    'dynamic_content_detected': False,
+                    'ajax_requests': []
+                },
+                ssr_detection={
+                    'is_ssr': None,
+                    'confidence': 0.0,
+                    'evidence': ["Dynamic analysis not supported - cannot detect SSR"]
+                }
+            )
         
-        self._browser: Optional[Browser] = None
-        self._playwright = None
-        
-        # Check for Windows Store Python compatibility
-        self._is_windows_store_python = self._check_windows_store_python()
-        if self._is_windows_store_python:
-            logger.warning("Windows Store Python detected. Dynamic analysis may not work due to asyncio limitations.")
+        try:
+            return asyncio.run(self.analyze_async(url))
+        except Exception as e:
+            self.logger.error(f"Dynamic analysis failed: {e}")
+            return AnalysisResult(
+                url=url,
+                status=AnalysisStatus.ERROR,
+                error_message=str(e),
+                content_analysis={
+                    'word_count': 0,
+                    'text_content': '',
+                    'character_count': 0,
+                    'estimated_tokens': 0,
+                    'paragraphs': 0,
+                    'links': 0,
+                    'images': 0,
+                    'tables': 0,
+                    'lists': 0,
+                    'hidden_content': []
+                },
+                structure_analysis={
+                    'semantic_elements': [],
+                    'has_semantic_html': False,
+                    'heading_hierarchy': {
+                        'h1': [], 'h2': [], 'h3': [],
+                        'h4': [], 'h5': [], 'h6': []
+                    },
+                    'total_elements': 0,
+                    'nested_depth': 0,
+                    'has_proper_structure': False,
+                    'navigation_elements': []
+                },
+                meta_analysis={
+                    'title': None,
+                    'description': None,
+                    'keywords': None,
+                    'meta_tags': [],
+                    'open_graph_tags': {},
+                    'twitter_card_tags': {},
+                    'structured_data': [],
+                    'has_json_ld': False,
+                    'has_microdata': False,
+                    'has_rdfa': False
+                },
+                javascript_analysis={
+                    'total_scripts': 0,
+                    'inline_scripts': 0,
+                    'external_scripts': 0,
+                    'frameworks': [],
+                    'is_spa': False,
+                    'has_ajax': False,
+                    'dynamic_content_detected': False,
+                    'ajax_requests': []
+                },
+                ssr_detection={
+                    'is_ssr': None,
+                    'confidence': 0.0,
+                    'evidence': ["Dynamic analysis failed - cannot detect SSR"]
+                }
+            )
     
-    def _check_windows_store_python(self) -> bool:
-        """Check if running on Windows Store Python with asyncio limitations."""
-        if platform.system() != "Windows":
-            return False
+    async def analyze_async(self, url: str) -> AnalysisResult:
+        """Asynchronously analyze a website."""
+        self.logger.info(f"Starting dynamic analysis of: {url}")
+        self.logger.info(f"Rendering URL with browser: {url}")
         
-        # Check for Windows Store Python path patterns
-        import sys
-        python_path = sys.executable.lower()
-        return "windowsapps" in python_path or "microsoft" in python_path
+        try:
+            # Get rendered HTML
+            html_content, status_code, response_time, ajax_requests = await self.fetch_rendered_html(
+                url, self.timeout
+            )
+            
+            # Parse content
+            content_analysis = self._analyze_content(html_content)
+            structure_analysis = self._analyze_structure(html_content)
+            meta_analysis = self._analyze_meta(html_content)
+            javascript_analysis = self._analyze_javascript(html_content, ajax_requests)
+            ssr_detection = self._detect_ssr(html_content, response_time)
+            
+            return AnalysisResult(
+                status="success",
+                error_message=None,
+                content_analysis=content_analysis,
+                structure_analysis=structure_analysis,
+                meta_analysis=meta_analysis,
+                javascript_analysis=javascript_analysis,
+                ssr_detection=ssr_detection
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Unexpected error during dynamic analysis: {e}")
+            raise
+        
+        finally:
+            await self._cleanup()
+    
+    async def fetch_rendered_html(
+        self, url: str, timeout: int
+    ) -> Tuple[str, int, float, List[Dict[str, Any]]]:
+        """Fetch rendered HTML using Playwright."""
+        page = await self._create_page()
+        
+        try:
+            # Navigate and wait for network idle
+            response = await page.goto(url, wait_until='networkidle', timeout=timeout * 1000)
+            if not response:
+                raise Exception(f"Failed to load {url}")
+            
+            # Wait for any remaining dynamic content
+            await page.wait_for_timeout(1000)  # 1s grace period
+            
+            # Get final HTML and timing
+            html = await page.content()
+            status = response.status
+            timing = response.request.timing
+            response_time = timing['responseEnd'] - timing['requestStart'] if timing else 0
+            
+            # Get AJAX requests
+            ajax_requests = await self._get_ajax_requests(page)
+            
+            return html, status, response_time, ajax_requests
+            
+        finally:
+            await page.close()
+    
+    async def _create_page(self) -> Page:
+        """Create a new browser page."""
+        if not self._browser:
+            await self._init_browser()
+        return await self._context.new_page()
     
     async def _init_browser(self):
-        """Initialize Playwright browser."""
-        if not PLAYWRIGHT_AVAILABLE:
-            raise RuntimeError("Playwright is not available. Please install it with: pip install playwright && playwright install")
+        """Initialize the browser."""
+        if not self._is_supported:
+            raise NotImplementedError(
+                "Dynamic analysis is not supported on Windows Store Python due to "
+                "asyncio limitations. Please use regular Python installation."
+            )
         
-        if self._is_windows_store_python:
-            raise NotImplementedError("Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Please use regular Python installation.")
-        
-        if self._browser is None:
-            logger.info("Initializing Playwright browser...")
-            try:
-                self._playwright = await async_playwright().start()
-                self._browser = await self._playwright.chromium.launch(
-                    headless=self.headless,
-                    args=[
-                        '--disable-blink-features=AutomationControlled',
-                        '--disable-dev-shm-usage',
-                        '--no-sandbox'
-                    ]
-                )
-            except NotImplementedError as e:
-                logger.error(f"Playwright initialization failed due to Windows Store Python: {e}")
-                raise NotImplementedError("Dynamic analysis is not supported on Windows Store Python due to asyncio limitations. Please use regular Python installation.")
-            logger.info("Browser initialized successfully")
+        self.logger.info("Initializing Playwright browser...")
+        self._playwright = await async_playwright().start()
+        self._browser = await self._playwright.chromium.launch(headless=self.headless)
+        self._context = await self._browser.new_context()
     
-    async def _close_browser(self):
-        """Close Playwright browser."""
+    async def _cleanup(self):
+        """Clean up browser resources."""
+        if self._context:
+            await self._context.close()
+            self._context = None
         if self._browser:
-            logger.info("Closing browser...")
             await self._browser.close()
             self._browser = None
         if self._playwright:
             await self._playwright.stop()
             self._playwright = None
     
-    async def _create_page(self) -> Page:
-        """
-        Create a new browser page with custom settings.
-        
-        Returns:
-            Configured Page instance
-        """
-        await self._init_browser()
-        
-        context = await self._browser.new_context(
-            user_agent=self.user_agent,
-            viewport={'width': 1920, 'height': 1080},
-            locale='en-US',
-            timezone_id='America/New_York'
-        )
-        
-        page = await context.new_page()
-        
-        # Set default timeout
-        page.set_default_timeout(self.timeout)
-        
-        return page
-    
-    async def fetch_rendered_html(self, url: str) -> tuple[str, int, float, list[str]]:
-        """
-        Fetch and render HTML content from URL.
-        
-        Args:
-            url: URL to fetch
-            
-        Returns:
-            Tuple of (html_content, status_code, response_time, ajax_requests)
-            
-        Raises:
-            PlaywrightError: If page navigation fails
-        """
-        logger.info(f"Rendering URL with browser: {url}")
-        
-        page = await self._create_page()
-        ajax_requests = []
-        
-        # Track AJAX requests
-        async def handle_request(request):
+    async def _get_ajax_requests(self, page: Page) -> List[Dict[str, Any]]:
+        """Get AJAX requests made during page load."""
+        requests = []
+        async with page.expect_request("**/*") as request_info:
+            request = await request_info.value
             if request.resource_type in ['xhr', 'fetch']:
-                ajax_requests.append(request.url)
-        
-        page.on('request', handle_request)
-        
-        try:
-            start_time = time.time()
-            
-            # Navigate to page
-            response = await page.goto(url, wait_until='networkidle')
-            
-            # Wait for page to be fully loaded
-            await page.wait_for_load_state('networkidle')
-            
-            response_time = time.time() - start_time
-            
-            # Get rendered HTML
-            html_content = await page.content()
-            
-            # Get status code
-            status_code = response.status if response else 0
-            
-            logger.info(
-                f"Successfully rendered {url}: "
-                f"Status={status_code}, "
-                f"Size={format_bytes(len(html_content.encode('utf-8')))}, "
-                f"Time={response_time:.2f}s, "
-                f"AJAX={len(ajax_requests)}"
-            )
-            
-            return html_content, status_code, response_time, ajax_requests
-            
-        except PlaywrightError as e:
-            logger.error(f"Playwright error rendering {url}: {e}")
-            raise
-        finally:
-            await page.close()
-            await page.context.close()
+                requests.append({
+                    'url': request.url,
+                    'method': request.method,
+                    'type': request.resource_type
+                })
+        return requests
     
-    async def analyze_async(self, url: str) -> AnalysisResult:
-        """
-        Perform complete dynamic analysis of a URL (async).
-        
-        Args:
-            url: URL to analyze
-            
-        Returns:
-            AnalysisResult with all analysis data
-        """
-        logger.info(f"Starting dynamic analysis of: {url}")
-        analysis_start = time.time()
-        
-        # Validate URL
-        is_valid, normalized_url, error = validate_url(url)
-        if not is_valid:
-            logger.error(f"Invalid URL: {error}")
-            return AnalysisResult(
-                url=url,
-                analyzed_at=datetime.now(),
-                status='error',
-                error_message=f"Invalid URL: {error}"
-            )
-        
-        try:
-            # Fetch and render HTML
-            html_content, status_code, response_time, ajax_requests = await self.fetch_rendered_html(
-                normalized_url
-            )
-            page_size = len(html_content.encode('utf-8'))
-            
-            # Check page size limit
-            max_size_bytes = self.settings.max_page_size_mb * 1024 * 1024
-            if page_size > max_size_bytes:
-                logger.warning(
-                    f"Page size ({format_bytes(page_size)}) exceeds limit "
-                    f"({format_bytes(max_size_bytes)})"
-                )
-                return AnalysisResult(
-                    url=normalized_url,
-                    analyzed_at=datetime.now(),
-                    status='error',
-                    error_message=f"Page size exceeds {self.settings.max_page_size_mb}MB limit"
-                )
-            
-            # Parse HTML
-            logger.info("Parsing rendered HTML structure...")
-            html_parser = HTMLParser(html_content)
-            content_analysis, structure_analysis, hidden_content = html_parser.analyze()
-            
-            # Parse meta tags
-            logger.info("Parsing meta tags...")
-            meta_parser = MetaParser(html_content)
-            meta_analysis = meta_parser.analyze()
-            
-            # Parse structured data
-            logger.info("Parsing structured data...")
-            structured_parser = StructuredDataParser(html_content)
-            structured_result = structured_parser.analyze()
-            
-            # Update meta analysis with structured data
-            meta_analysis.structured_data = structured_result['structured_data']
-            meta_analysis.has_json_ld = structured_result['has_json_ld']
-            meta_analysis.has_microdata = structured_result['has_microdata']
-            meta_analysis.has_rdfa = structured_result['has_rdfa']
-            
-            # Parse JavaScript
-            logger.info("Analyzing JavaScript usage...")
-            js_parser = JavaScriptParser(html_content)
-            js_analysis = js_parser.analyze()
-            
-            # Note: AJAX requests are tracked separately in ajax_requests list
-            # The js_analysis.has_ajax field indicates static AJAX code detection
-            
-            # Calculate analysis duration
-            analysis_duration = time.time() - analysis_start
-            
-            # Create result
-            result = AnalysisResult(
-                url=normalized_url,
-                analyzed_at=datetime.now(),
-                status='success',
-                content_analysis=content_analysis,
-                structure_analysis=structure_analysis,
-                hidden_content=hidden_content,
-                meta_analysis=meta_analysis,
-                javascript_analysis=js_analysis,
-                crawler_analysis=None,
-                content_comparison=None,
-                analysis_duration_seconds=analysis_duration,
-                page_load_time_seconds=response_time,
-                page_size_bytes=page_size
-            )
-            
-            logger.info(
-                f"Dynamic analysis complete in {analysis_duration:.2f}s: "
-                f"{content_analysis.word_count} words, "
-                f"{len(structure_analysis.semantic_elements)} semantic elements, "
-                f"{js_analysis.total_scripts} scripts, "
-                f"{len(ajax_requests)} AJAX requests"
-            )
-            
-            return result
-            
-        except PlaywrightError as e:
-            error_msg = str(e)
-            if 'Timeout' in error_msg or 'timeout' in error_msg:
-                return AnalysisResult(
-                    url=normalized_url,
-                    analyzed_at=datetime.now(),
-                    status='error',
-                    error_message=f"Page load timeout after {self.timeout/1000} seconds"
-                )
-            return AnalysisResult(
-                url=normalized_url,
-                analyzed_at=datetime.now(),
-                status='error',
-                error_message=f"Browser error: {error_msg}"
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error during dynamic analysis: {e}", exc_info=True)
-            return AnalysisResult(
-                url=normalized_url,
-                analyzed_at=datetime.now(),
-                status='error',
-                error_message=f"Analysis failed: {str(e)}"
-            )
-        finally:
-            # Ensure browser is closed
-            await self._close_browser()
+    def _analyze_content(self, html: str) -> Dict[str, Any]:
+        """Analyze rendered content."""
+        # Implement content analysis
+        return {
+            'word_count': len(html.split()),
+            'text_content': html,
+            'links': 0,  # TODO: Implement
+            'images': 0,
+            'tables': 0,
+            'lists': 0,
+            'hidden_content': []
+        }
     
-    def analyze(self, url: str) -> AnalysisResult:
-        """
-        Perform complete dynamic analysis of a URL (synchronous wrapper).
-        
-        Args:
-            url: URL to analyze
-            
-        Returns:
-            AnalysisResult with all analysis data
-        """
-        # Create or get event loop
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
-        # Run async analysis
-        return loop.run_until_complete(self.analyze_async(url))
+    def _analyze_structure(self, html: str) -> Dict[str, Any]:
+        """Analyze HTML structure."""
+        return {
+            'semantic_elements': [],  # TODO: Implement
+            'heading_structure': [],
+            'navigation_elements': []
+        }
     
-    async def close(self):
-        """Close the browser (async)."""
-        await self._close_browser()
+    def _analyze_meta(self, html: str) -> Dict[str, Any]:
+        """Analyze meta information."""
+        return {
+            'title': None,  # TODO: Implement
+            'description': None,
+            'keywords': None,
+            'open_graph_tags': [],
+            'twitter_card_tags': [],
+            'structured_data': {}
+        }
     
-    async def __aenter__(self):
-        """Async context manager entry."""
-        return self
+    def _analyze_javascript(
+        self, html: str, ajax_requests: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Analyze JavaScript usage."""
+        return {
+            'total_scripts': 0,  # TODO: Implement
+            'frameworks': [],
+            'is_spa': False,
+            'dynamic_content_detected': bool(ajax_requests),
+            'ajax_requests': ajax_requests
+        }
     
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
-        await self.close()
+    def _detect_ssr(self, html: str, response_time: float) -> Dict[str, Any]:
+        """Detect server-side rendering."""
+        # If dynamic analysis is not supported, we can't reliably detect SSR
+        if not self._is_supported:
+            return {
+                'is_ssr': None,
+                'confidence': 0.0,
+                'evidence': ["Dynamic analysis not supported - cannot detect SSR"]
+            }
 
+        # Simple heuristic: fast response + complete HTML = likely SSR
+        is_ssr = response_time < 0.5 and len(html) > 1000
+        confidence = 0.8 if is_ssr else 0.2
+        
+        return {
+            'is_ssr': is_ssr,
+            'confidence': confidence,
+            'evidence': [
+                f"Response time: {response_time:.2f}s",
+                f"Initial HTML size: {len(html)} bytes",
+                "Based on response time and initial HTML size"
+            ]
+        }

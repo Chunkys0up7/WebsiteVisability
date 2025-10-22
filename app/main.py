@@ -18,7 +18,10 @@ from src.analyzers.ssr_detector import SSRDetector
 from src.analyzers.web_crawler_analyzer import WebCrawlerAnalyzer
 from src.analyzers.evidence_capture import EvidenceCapture
 from src.analyzers.enhanced_llm_analyzer import EnhancedLLMAccessibilityAnalyzer
-from src.analyzers.llms_txt_analyzer import LLMsTxtAnalyzer
+from src.analyzers.bot_directives_analyzer import BotDirectivesAnalyzer
+from src.analyzers.website_comparison_analyzer import WebsiteComparisonAnalyzer
+from src.analyzers.llm_content_viewer import LLMContentViewer
+from src.analyzers.llm_scraper_comparison import LLMScraperComparisonAnalyzer
 from src.utils.validators import URLValidator
 from src.utils.report_generator import ComprehensiveReportGenerator, ReportData
 from src.models.analysis_result import AnalysisResult
@@ -206,7 +209,7 @@ st.markdown("""
         }
 
         /* Streamlit Tabs - Enhanced visibility */
-        .stTabs [data-baseweb="tab-list"] {
+    .stTabs [data-baseweb="tab-list"] {
             gap: 8px;
             justify-content: flex-start;
             margin-bottom: 1rem;
@@ -215,11 +218,11 @@ st.markdown("""
             padding: 12px;
             border-radius: 12px;
             border: 1px solid #e5e7eb;
-        }
-        .stTabs [data-baseweb="tab"] {
+    }
+    .stTabs [data-baseweb="tab"] {
             padding: 12px 20px;
             font-size: 1rem;
-            font-weight: 500;
+        font-weight: 500;
             color: #4a4a4a;
             transition: all 0.2s ease-in-out;
             white-space: nowrap;
@@ -227,14 +230,14 @@ st.markdown("""
             background-color: #ffffff;
             border: 1px solid #e5e7eb;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .stTabs [data-baseweb="tab"]:hover {
+    }
+    .stTabs [data-baseweb="tab"]:hover {
             color: #2563eb;
             background-color: #eff6ff;
             border-color: #2563eb;
             transform: translateY(-1px);
-        }
-        .stTabs [aria-selected="true"] {
+    }
+    .stTabs [aria-selected="true"] {
             color: #ffffff;
             background-color: #2563eb;
             border-color: #2563eb;
@@ -799,20 +802,44 @@ def initialize_session_state():
         st.session_state.evidence_report = None
     if 'enhanced_llm_report' not in st.session_state:
         st.session_state.enhanced_llm_report = None
-    if 'llms_txt_analysis' not in st.session_state:
-        st.session_state.llms_txt_analysis = None
+    if 'bot_directives' not in st.session_state:
+        st.session_state.bot_directives = None
     if 'last_analysis_type' not in st.session_state:
         st.session_state.last_analysis_type = None
     if 'analysis_duration' not in st.session_state:
         st.session_state.analysis_duration = 0.0
+    if 'comparison_enabled' not in st.session_state:
+        st.session_state.comparison_enabled = False
+    if 'comparison_url' not in st.session_state:
+        st.session_state.comparison_url = None
+    if 'comparison_results' not in st.session_state:
+        st.session_state.comparison_results = None
+    if 'first_analysis' not in st.session_state:
+        st.session_state.first_analysis = None
+    if 'comparison_static_result' not in st.session_state:
+        st.session_state.comparison_static_result = None
+    if 'comparison_dynamic_result' not in st.session_state:
+        st.session_state.comparison_dynamic_result = None
+    if 'comparison_llm_report' not in st.session_state:
+        st.session_state.comparison_llm_report = None
+    if 'comparison_enhanced_llm_report' not in st.session_state:
+        st.session_state.comparison_enhanced_llm_report = None
+    if 'comparison_bot_directives' not in st.session_state:
+        st.session_state.comparison_bot_directives = None
+    if 'comparison_score' not in st.session_state:
+        st.session_state.comparison_score = None
 
 def clear_session_state():
     """Clear all analysis data from session state"""
     keys_to_clear = [
         'analysis_complete', 'static_result', 'dynamic_result', 'comparison', 
         'score', 'analyzed_url', 'llm_report', 'ssr_detection', 'crawler_analysis',
-        'evidence_report', 'enhanced_llm_report', 'llms_txt_analysis', 
-        'last_analysis_type', 'analysis_duration'
+        'evidence_report', 'enhanced_llm_report', 'bot_directives', 
+        'last_analysis_type', 'analysis_duration', 'comparison_enabled',
+        'comparison_url', 'comparison_results', 'first_analysis',
+        'comparison_static_result', 'comparison_dynamic_result',
+        'comparison_llm_report', 'comparison_enhanced_llm_report',
+        'comparison_bot_directives', 'comparison_score'
     ]
     
     for key in keys_to_clear:
@@ -837,6 +864,139 @@ def _get_grade(score: float) -> str:
     elif score >= 63: return "D"
     elif score >= 60: return "D-"
     else: return "F"
+
+def generate_pdf_report() -> str:
+    """Generate comprehensive HTML report for PDF export"""
+    report = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Website Analysis Report</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+        h1 {{ color: #667eea; border-bottom: 3px solid #764ba2; padding-bottom: 10px; }}
+        h2 {{ color: #4A90E2; margin-top: 30px; border-bottom: 2px solid #ddd; padding-bottom: 8px; }}
+        h3 {{ color: #2c3e50; margin-top: 20px; }}
+        .score-box {{ background: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin: 10px 0; }}
+        .metric {{ display: inline-block; margin: 10px 20px; }}
+        .excellent {{ color: #10b981; font-weight: bold; }}
+        .good {{ color: #3b82f6; font-weight: bold; }}
+        .fair {{ color: #f59e0b; font-weight: bold; }}
+        .poor {{ color: #ef4444; font-weight: bold; }}
+        .recommendation {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; }}
+        .critical {{ background: #f8d7da; border-left: 4px solid #dc3545; padding: 10px; margin: 10px 0; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
+        th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
+        th {{ background-color: #667eea; color: white; }}
+        .timestamp {{ color: #6c757d; font-size: 0.9em; }}
+    </style>
+</head>
+<body>
+    <h1>🔍 Website Analysis Report</h1>
+    <p class="timestamp">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    
+    <div class="score-box">
+        <h2>📊 Executive Summary</h2>
+        <p><strong>Primary URL:</strong> {html.escape(st.session_state.analyzed_url)}</p>
+"""
+    
+    # Add comparison info if available
+    if st.session_state.comparison_url:
+        report += f"""
+        <p><strong>Comparison URL:</strong> {html.escape(st.session_state.comparison_url)}</p>
+"""
+    
+    # Add scores
+    if st.session_state.score:
+        scraper_score = st.session_state.score.scraper_friendliness.total_score
+        llm_score = st.session_state.score.llm_accessibility.total_score
+        report += f"""
+        <div class="metric">
+            <h3>Scraper Friendliness</h3>
+            <p class="{"excellent" if scraper_score >= 80 else "good" if scraper_score >= 60 else "fair" if scraper_score >= 40 else "poor"}">
+                {scraper_score:.1f}/100 ({st.session_state.score.scraper_friendliness.grade})
+            </p>
+        </div>
+        <div class="metric">
+            <h3>LLM Accessibility</h3>
+            <p class="{"excellent" if llm_score >= 80 else "good" if llm_score >= 60 else "fair" if llm_score >= 40 else "poor"}">
+                {llm_score:.1f}/100 ({st.session_state.score.llm_accessibility.grade})
+            </p>
+        </div>
+"""
+    report += "</div>"
+    
+    # Add content analysis
+    if st.session_state.static_result and st.session_state.static_result.content_analysis:
+        content = st.session_state.static_result.content_analysis
+        report += f"""
+    <h2>📝 Content Analysis</h2>
+    <table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Word Count</td><td>{content.word_count:,}</td></tr>
+        <tr><td>Character Count</td><td>{content.character_count:,}</td></tr>
+        <tr><td>Paragraphs</td><td>{content.paragraphs}</td></tr>
+        <tr><td>Links</td><td>{content.links}</td></tr>
+        <tr><td>Images</td><td>{content.images}</td></tr>
+        <tr><td>Tables</td><td>{content.tables}</td></tr>
+        <tr><td>Lists</td><td>{content.lists}</td></tr>
+    </table>
+"""
+    
+    # Add recommendations
+    if st.session_state.score and st.session_state.score.recommendations:
+        report += "<h2>💡 Key Recommendations</h2>"
+        critical = [r for r in st.session_state.score.recommendations if r.priority.value == "critical"]
+        high = [r for r in st.session_state.score.recommendations if r.priority.value == "high"]
+        
+        if critical:
+            report += "<h3>🚨 Critical Issues</h3>"
+            for rec in critical:
+                report += f'<div class="critical"><strong>{html.escape(rec.title)}</strong><br>{html.escape(rec.description)}</div>'
+        
+        if high:
+            report += "<h3>⚠️ High Priority</h3>"
+            for rec in high:
+                report += f'<div class="recommendation"><strong>{html.escape(rec.title)}</strong><br>{html.escape(rec.description)}</div>'
+    
+    # Add comparison results
+    if st.session_state.comparison_results:
+        comparison = st.session_state.comparison_results
+        report += f"""
+    <h2>🔄 Website Comparison</h2>
+    <div class="score-box">
+        <p><strong>Overall Similarity:</strong> {comparison.overall_similarity_score:.1f}%</p>
+        <h3>Key Insights:</h3>
+        <ul>
+"""
+        for insight in comparison.key_insights[:5]:  # Top 5 insights
+            report += f"<li>{html.escape(insight)}</li>"
+        report += """
+        </ul>
+    </div>
+"""
+    
+    # Add bot directives analysis
+    if st.session_state.bot_directives:
+        analysis = st.session_state.bot_directives
+        report += f"""
+    <h2>🤖 Bot Directives Analysis</h2>
+    <div class="score-box">
+        <p><strong>robots.txt:</strong> {'✅ Present' if analysis.robots_txt.is_present else '❌ Missing'}</p>
+        <p><strong>llms.txt:</strong> {'✅ Present' if analysis.llms_txt.is_present else '❌ Missing'}</p>
+        <p><strong>Compatibility Score:</strong> {analysis.compatibility_score:.1f}/100</p>
+    </div>
+"""
+    
+    # Close HTML
+    report += """
+    <hr>
+    <p class="timestamp">End of Report</p>
+</body>
+</html>
+"""
+    return report
 
 def get_score_color_class(score: float) -> str:
     """Get CSS class based on score"""
@@ -864,8 +1024,14 @@ def render_score_card(header: str, value: Any, grade: str, score: float = None, 
     </div>
     """, unsafe_allow_html=True)
 
-def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str = "Comprehensive Analysis", 
-                    crawler_types: Optional[List[str]] = None, capture_evidence: bool = True):
+def perform_analysis(
+    url: str,
+    analyze_dynamic: bool = True,
+    analysis_type: str = "Comprehensive Analysis",
+    crawler_types: Optional[List[str]] = None,
+    capture_evidence: bool = True,
+    comparison_url: Optional[str] = None
+):
     """Perform website analysis based on selected focus"""
     start_time = time.time()
     
@@ -932,11 +1098,11 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
                 st.session_state.enhanced_llm_report = enhanced_llm_report
                 logger.info(f"Enhanced LLM analysis completed for {url}")
                 
-                status.update(label="📄 Analyzing llms.txt file...", state="running")
-                llms_txt_analyzer = LLMsTxtAnalyzer()
-                llms_txt_analysis = llms_txt_analyzer.analyze(url)
-                st.session_state.llms_txt_analysis = llms_txt_analysis
-                logger.info(f"LLMs.txt analysis completed for {url}")
+                status.update(label="📄 Analyzing robots.txt and llms.txt files...", state="running")
+                bot_directives_analyzer = BotDirectivesAnalyzer()
+                bot_directives = bot_directives_analyzer.analyze(url)
+                st.session_state.bot_directives = bot_directives
+                logger.info(f"Bot directives analysis completed for {url}")
             
             # SSR Detection
             if analysis_type in ["Comprehensive Analysis", "SSR Detection Only"]:
@@ -1003,6 +1169,84 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             else:
                 st.session_state.score = None
             
+                # If comparison URL is provided, store first analysis results
+            if comparison_url and st.session_state.comparison_enabled:
+                status.update(label="🔄 Starting comparison analysis...", state="running")
+                
+                # Store first analysis results
+                st.session_state.first_analysis = {
+                    'url': url,
+                    'static_result': static_result,
+                    'dynamic_result': dynamic_result,
+                    'bot_directives': st.session_state.bot_directives,
+                    'llm_report': st.session_state.llm_report,
+                    'score': st.session_state.score
+                }
+                
+                # Validate comparison URL
+                is_valid, normalized_comparison_url, error_msg = URLValidator.validate_and_normalize(comparison_url)
+                if not is_valid:
+                    st.error(f"⚠️ Comparison URL invalid: {error_msg}")
+                    return False
+                
+                # Analyze comparison URL
+                comparison_success = perform_analysis(
+                    normalized_comparison_url,
+                    analyze_dynamic,
+                    analysis_type,
+                    crawler_types,
+                    capture_evidence,
+                    None  # No nested comparisons
+                )
+                
+                if not comparison_success:
+                    st.error(f"❌ Comparison analysis failed for {normalized_comparison_url}")
+                    return False
+                
+                # Compare the two websites
+                status.update(label="📊 Comparing websites...", state="running")
+                comparison_analyzer = WebsiteComparisonAnalyzer()
+                
+                try:
+                    comparison_results = comparison_analyzer.compare(
+                        url1=st.session_state.first_analysis['url'],
+                        url2=comparison_url,
+                        analysis1=st.session_state.first_analysis['static_result'],
+                        analysis2=st.session_state.static_result,
+                        bot_directives1=st.session_state.first_analysis['bot_directives'],
+                        bot_directives2=st.session_state.bot_directives,
+                        llm_score1=(
+                            st.session_state.first_analysis['llm_report'].overall_score 
+                            if st.session_state.first_analysis['llm_report'] else None
+                        ),
+                        llm_score2=(
+                            st.session_state.llm_report.overall_score 
+                            if st.session_state.llm_report else None
+                        ),
+                        scraper_score1=(
+                            st.session_state.first_analysis['score'].scraper_friendliness.total_score 
+                            if st.session_state.first_analysis['score'] else None
+                        ),
+                        scraper_score2=(
+                            st.session_state.score.scraper_friendliness.total_score 
+                            if st.session_state.score else None
+                        )
+                    )
+                    st.session_state.comparison_results = comparison_results
+                    logger.info(f"Website comparison completed between {st.session_state.first_analysis['url']} and {comparison_url}")
+                    
+                    # Restore the first analysis as the primary display
+                    st.session_state.static_result = st.session_state.first_analysis['static_result']
+                    st.session_state.dynamic_result = st.session_state.first_analysis['dynamic_result']
+                    st.session_state.bot_directives = st.session_state.first_analysis['bot_directives']
+                    st.session_state.llm_report = st.session_state.first_analysis['llm_report']
+                    st.session_state.score = st.session_state.first_analysis['score']
+                    
+                except Exception as e:
+                    logger.error(f"Comparison error: {str(e)}")
+                    st.error(f"❌ Comparison failed: {str(e)}")
+                    return False
+            
             st.session_state.analysis_complete = True
             st.session_state.analyzed_url = url
             st.session_state.last_analysis_type = analysis_type
@@ -1010,7 +1254,11 @@ def perform_analysis(url: str, analyze_dynamic: bool = True, analysis_type: str 
             end_time = time.time()
             st.session_state.analysis_duration = end_time - start_time
             
-            status.update(label="✅ Analysis complete!", state="complete", expanded=False)
+            status.update(
+                label="✅ Analysis complete!" + (" (with comparison)" if comparison_url else ""),
+                state="complete",
+                expanded=False
+            )
             return True
         
     except Exception as e:
@@ -1032,116 +1280,94 @@ def main():
     
     # Sidebar - Input Form
     with st.sidebar:
-        st.markdown('<h2 class="sidebar-header">⚙️ Analysis Configuration</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="sidebar-header">⚙️ Quick Setup</h2>', unsafe_allow_html=True)
         
         with st.form("analysis_config_form"):
-            # Target Website Section
-            st.markdown("""
-            <div class="sidebar-section">
-                <h3 class="sidebar-subheader">🎯 Target Website</h3>
-                <div class="sidebar-description">
-                    Enter the website URL you want to analyze. Make sure it's accessible and includes the full URL with https://.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            # URL Input
             url_input = st.text_input(
-                "Website URL",
+                "🌐 Website URL",
                 value=st.session_state.get('analyzed_url', ''),
-                placeholder="https://example.com",
-                help="Enter the full URL including https://"
+                placeholder="https://example.com"
             )
+            
+            # Comparison toggle
+            prev_comparison_enabled = st.session_state.get('comparison_enabled', False)
+            prev_comparison_url = st.session_state.get('comparison_url', '')
+            
+            comparison_enabled = st.checkbox(
+                "🔄 Compare with another site",
+                value=prev_comparison_enabled,
+                key="comparison_enabled_checkbox"
+            )
+            
+            # Show comparison URL input (disabled if not enabled)
+            comparison_url = st.text_input(
+                "Comparison URL",
+                value=prev_comparison_url if prev_comparison_url else "",
+                placeholder="https://competitor.com",
+                disabled=not comparison_enabled,
+                key="comparison_url_input"
+            )
+            
+            # Update session state
+            st.session_state.comparison_enabled = comparison_enabled
+            st.session_state.comparison_url = comparison_url if comparison_enabled else None
+            
+            # Clear comparison results if disabled
+            if not comparison_enabled and prev_comparison_enabled:
+                st.session_state.comparison_results = None
+                st.session_state.first_analysis = None
             
             st.markdown("---")
             
-            # Analysis Focus Section
-            st.markdown("""
-            <div class="sidebar-section">
-                <h3 class="sidebar-subheader">🔍 Analysis Focus</h3>
-                <div class="sidebar-description">
-                    Choose the type of analysis to perform:
-                    • <strong>Comprehensive Analysis:</strong> Full website evaluation
-                    • <strong>LLM Accessibility:</strong> Focus on LLM readability
-                    • <strong>Web Crawler Testing:</strong> Test crawler access
-                    • <strong>SSR Detection:</strong> Check server-side rendering
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            # Analysis type - compact
             analysis_options = ["Comprehensive Analysis", "LLM Accessibility Only", "Web Crawler Testing", "SSR Detection Only"]
             last_analysis = st.session_state.get('last_analysis_type', 'Comprehensive Analysis')
             
-            # Handle case where last_analysis_type might be None or not in list
             try:
                 default_index = analysis_options.index(last_analysis)
             except (ValueError, TypeError):
-                default_index = 0  # Default to "Comprehensive Analysis"
+                default_index = 0
             
             analysis_type = st.selectbox(
-                "Choose Analysis Type",
+                "📊 Analysis Type",
                 analysis_options,
-                index=default_index,
-                help="Select the specific type of analysis to perform."
+                index=default_index
             )
             
             crawler_types = None
             if analysis_type == "Web Crawler Testing":
                 crawler_types = st.multiselect(
-                    "Select Crawlers to Test",
+                    "Crawlers",
                     ["googlebot", "bingbot", "llm", "basic_scraper", "social_crawler"],
-                    default=st.session_state.get('last_crawler_types_selection', ["llm", "googlebot"]),
-                    help="Choose which crawler types to simulate."
+                    default=st.session_state.get('last_crawler_types_selection', ["llm", "googlebot"])
                 )
                 st.session_state.last_crawler_types_selection = crawler_types
             
-            st.subheader("3. Advanced Options")
-            with st.expander("Advanced Analysis Settings", expanded=False):
+            # Advanced options - collapsed by default
+            with st.expander("⚙️ Advanced", expanded=False):
                 analyze_dynamic = False
                 if analysis_type == "Comprehensive Analysis":
                     analyze_dynamic = st.checkbox(
-                        "Include dynamic analysis (renders content with browser)",
-                        value=True,
-                        help="Dynamic analysis fetches content after JavaScript execution."
+                        "Dynamic analysis",
+                        value=True
                     )
-                    st.info("✅ Dynamic analysis is now fully supported!")
-                else:
-                    st.info("Dynamic analysis is only applicable for 'Comprehensive Analysis'.")
                 
                 capture_evidence = st.checkbox(
-                    "Generate Detailed Evidence Report",
-                    value=st.session_state.get('last_capture_evidence_selection', True),
-                    help="Enable to capture detailed data points and observations."
+                    "Detailed evidence",
+                    value=st.session_state.get('last_capture_evidence_selection', True)
                 )
                 st.session_state.last_capture_evidence_selection = capture_evidence
             
             st.markdown("---")
-            analyze_button = st.form_submit_button("🚀 Start Analysis", type="primary", use_container_width=True)
+            analyze_button = st.form_submit_button("🚀 Analyze Website", type="primary", use_container_width=True)
         
-        st.markdown("---")
-        
-        # Clear Analysis Button
+        # Clear button (if analysis exists)
         if st.session_state.analysis_complete:
-            st.subheader("🔄 Reset Analysis")
-            if st.button("🗑️ Clear All Analysis Data", type="secondary", use_container_width=True):
+            st.markdown("---")
+            if st.button("🗑️ Clear & Restart", type="secondary", use_container_width=True):
                 clear_session_state()
-                st.success("✅ Analysis data cleared! You can now start a fresh analysis.")
                 st.rerun()
-        
-        st.markdown("---")
-        
-        # Info section
-        with st.expander("ℹ️ How This Tool Works"):
-            st.markdown("""
-            This application analyzes websites to determine:
-            
-            - **Scraper Accessibility**: What content can be extracted by web scrapers
-            - **LLM Accessibility**: How well the content is structured for AI understanding
-            - **JavaScript Dependency**: Content that requires JavaScript to load
-            - **SEO & Metadata**: Quality of meta tags and structured data
-            
-            The analysis provides actionable recommendations to improve your site's
-            accessibility to both scrapers and LLMs.
-            """)
     
     # Process analysis
     if analyze_button:
@@ -1153,18 +1379,48 @@ def main():
                 st.error(f"⚠️ {error_msg}")
             else:
                 url_input = normalized_url
-                success = perform_analysis(url_input, analyze_dynamic, analysis_type,
+                success = perform_analysis(
+                    url_input,
+                    analyze_dynamic,
+                    analysis_type,
                                          crawler_types,
-                                         capture_evidence)
+                    capture_evidence,
+                    comparison_url if comparison_enabled else None
+                )
                 
                 if success:
                     st.rerun()
     
     # Display results
     if st.session_state.analysis_complete:
-        st.markdown('<h2 class="section-header">Overall Analysis Summary</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="section-header">✅ Analysis Complete</h2>', unsafe_allow_html=True)
+        
+        # Action buttons
+        col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 1])
+        with col_btn1:
+            st.markdown(f"**Analyzed:** `{st.session_state.analyzed_url}`")
+            if st.session_state.comparison_url:
+                st.markdown(f"**Compared with:** `{st.session_state.comparison_url}`")
+        with col_btn2:
+            # Generate PDF report content
+            if st.button("📥 Download PDF Report", type="primary", use_container_width=True):
+                pdf_content = generate_pdf_report()
+                st.download_button(
+                    label="💾 Save Report",
+                    data=pdf_content,
+                    file_name=f"website_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                    mime="text/html",
+                    use_container_width=True
+                )
+        with col_btn3:
+            if st.button("🗑️ Clear Results", type="secondary", use_container_width=True):
+                clear_session_state()
+                st.rerun()
+        
+        st.markdown("---")
         
         # Score Cards
+        st.markdown('<h3 class="section-header">📊 Quick Summary</h3>', unsafe_allow_html=True)
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -1214,6 +1470,82 @@ def main():
         
         st.markdown("---")
         
+        # Score Breakdown Section
+        if st.session_state.score:
+            st.markdown('<h3 class="section-header">🔍 Score Breakdown</h3>', unsafe_allow_html=True)
+            
+            col_breakdown1, col_breakdown2 = st.columns(2)
+            
+            with col_breakdown1:
+                with st.expander("📊 Scraper Friendliness Score Breakdown", expanded=False):
+                    score_obj = st.session_state.score.scraper_friendliness
+                    
+                    st.markdown(f"""
+                    **Total Score:** {score_obj.total_score:.1f}/100 ({score_obj.grade})
+                    
+                    **Component Scores:**
+                    """)
+                    
+                    # Show each component with its score
+                    components = [
+                        ('static_content_quality', '📝 Static Content Quality'),
+                        ('semantic_html_structure', '🏗️ Semantic HTML Structure'),
+                        ('structured_data_implementation', '📊 Structured Data'),
+                        ('meta_tag_completeness', '🏷️ Meta Tags'),
+                        ('javascript_dependency', '⚡ JavaScript Dependency'),
+                        ('crawler_accessibility', '🕷️ Crawler Accessibility')
+                    ]
+                    
+                    for attr_name, display_name in components:
+                        if hasattr(score_obj, attr_name):
+                            component = getattr(score_obj, attr_name)
+                            st.write(f"• {display_name}: **{component.score:.1f}/{component.max_score:.0f}** ({component.percentage:.0f}%)")
+                    
+                    st.markdown("---")
+                    st.markdown(f"""
+                    **Formula:**
+                    ```
+                    Total = Sum of all component scores
+                    Final Score = (Total / Max Possible) × 100
+                    ```
+                    """)
+            
+            with col_breakdown2:
+                with st.expander("🤖 LLM Accessibility Score Breakdown", expanded=False):
+                    score_obj = st.session_state.score.llm_accessibility
+                    
+                    st.markdown(f"""
+                    **Total Score:** {score_obj.total_score:.1f}/100 ({score_obj.grade})
+                    
+                    **Component Scores:**
+                    """)
+                    
+                    # Show each component with its score
+                    components = [
+                        ('static_content_quality', '📝 Content Quality'),
+                        ('semantic_html_structure', '🏗️ Semantic Structure'),
+                        ('structured_data_implementation', '📊 Structured Data'),
+                        ('meta_tag_completeness', '🏷️ Meta Tags'),
+                        ('javascript_dependency', '⚡ JS Dependency'),
+                        ('crawler_accessibility', '🤖 LLM Accessibility')
+                    ]
+                    
+                    for attr_name, display_name in components:
+                        if hasattr(score_obj, attr_name):
+                            component = getattr(score_obj, attr_name)
+                            st.write(f"• {display_name}: **{component.score:.1f}/{component.max_score:.0f}** ({component.percentage:.0f}%)")
+                    
+                    st.markdown("---")
+                    st.markdown(f"""
+                    **Formula:**
+                    ```
+                    Total = Sum of all component scores
+                    Final Score = (Total / Max Possible) × 100
+                    ```
+                    """)
+            
+            st.markdown("---")
+        
         # Organize tabs into logical groups
         st.markdown("""
         <div class="tab-group-header">
@@ -1224,9 +1556,11 @@ def main():
         
         # Primary Analysis Tabs
         primary_tabs = st.tabs([
+            "🔄 Comparison",
             "🎯 Executive Summary",
             "📊 Overview",
             "🤖 LLM Analysis",
+            "👁️ LLM Visibility",
             "💡 Recommendations"
         ])
         
@@ -1277,7 +1611,161 @@ def main():
         # Combine all tabs for reference
         tabs = primary_tabs + technical_tabs + structure_tabs + report_tabs
         
-        with tabs[0]:  # Executive Summary
+        with tabs[0]:  # LLM vs Scraper Comparison
+            st.markdown('<h2 class="section-header">🔄 LLM vs Scraper Comparison</h2>', unsafe_allow_html=True)
+            
+            # Debug information
+            with st.expander("🔍 Debug Info (click to expand)", expanded=False):
+                st.write("comparison_enabled:", st.session_state.comparison_enabled)
+                st.write("comparison_url:", st.session_state.comparison_url)
+                st.write("comparison_results exists:", st.session_state.comparison_results is not None)
+                if st.session_state.comparison_results:
+                    st.write("comparison_results type:", type(st.session_state.comparison_results).__name__)
+            
+            if not st.session_state.comparison_enabled:
+                st.info("✨ **Enable website comparison in the sidebar** to compare two websites side-by-side!")
+            elif not st.session_state.comparison_url:
+                st.info("📝 **Enter a comparison URL in the sidebar** to start the comparison.")
+            elif not st.session_state.comparison_results:
+                st.info("▶️ **Click 'Analyze Website' button** to run the comparison analysis.")
+            else:
+                # We have comparison results - display them!
+                comparison = st.session_state.comparison_results
+                
+                # URLs being compared
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem;">
+                    <h3 style="color: white; margin: 0 0 1rem 0;">Comparing:</h3>
+                    <p style="color: white; margin: 0.5rem 0;"><strong>URL 1:</strong> <code>{comparison.url1}</code></p>
+                    <p style="color: white; margin: 0.5rem 0;"><strong>URL 2:</strong> <code>{comparison.url2}</code></p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+                # Overall similarity score
+                st.metric(
+                    "🎯 Overall Similarity",
+                    f"{comparison.overall_similarity_score:.1f}%",
+                    help="How similar the two websites are across all dimensions"
+                )
+                
+                # Score Breakdown
+                st.markdown('<h3 class="sub-section-header">📊 Similarity Score Breakdown</h3>', unsafe_allow_html=True)
+                st.markdown("""
+                The overall similarity score is calculated from three main components:
+                1. **Content Similarity (40%)**: Text content and HTML structure
+                2. **Accessibility (30%)**: LLM and scraper friendliness scores
+                3. **Technical (30%)**: JavaScript, meta tags, and structured data
+                """)
+            
+                # Add calculation methodology display
+                with st.expander("🧮 Detailed Calculation Methodology", expanded=True):
+                    st.markdown("""
+                    ### Formula
+                    ```
+                    Overall Similarity = (Content × 0.4) + (Accessibility × 0.3) + (Technical × 0.3)
+                    ```
+                    
+                    ### Component Calculations
+                    **Content Similarity**: Compares text content length, structure, and HTML similarity
+                    - Text length comparison
+                    - HTML structure analysis
+                    - Semantic element comparison
+                    
+                    **Accessibility**: Compares LLM and scraper friendliness scores
+                    - LLM accessibility scores
+                    - Scraper friendliness scores
+                    - Rendering method (SSR vs CSR)
+                    
+                    **Technical**: Compares implementation details
+                    - JavaScript usage and frameworks
+                    - Meta tag completeness
+                    - Structured data implementation
+                    """)
+                
+                st.markdown("---")
+            
+                # Content Comparison
+                st.markdown('<h3 class="sub-section-header">📝 Content Comparison</h3>', unsafe_allow_html=True)
+                col_content1, col_content2 = st.columns(2)
+                with col_content1:
+                    st.metric("Content Similarity", f"{comparison.content.similarity_score:.1f}%")
+                with col_content2:
+                    st.metric("Word Count Difference", f"{comparison.content.word_count_diff:+,}")
+                
+                if comparison.content.missing_in_url2:
+                    with st.expander(f"📄 Content in URL 1 but not URL 2 ({len(comparison.content.missing_in_url2)} items)"):
+                        for item in comparison.content.missing_in_url2[:10]:
+                            st.write(f"• {item}")
+                        if len(comparison.content.missing_in_url2) > 10:
+                            st.info(f"...and {len(comparison.content.missing_in_url2) - 10} more items")
+                
+                if comparison.content.missing_in_url1:
+                    with st.expander(f"📄 Content in URL 2 but not URL 1 ({len(comparison.content.missing_in_url1)} items)"):
+                        for item in comparison.content.missing_in_url1[:10]:
+                            st.write(f"• {item}")
+                        if len(comparison.content.missing_in_url1) > 10:
+                            st.info(f"...and {len(comparison.content.missing_in_url1) - 10} more items")
+                
+                st.markdown("---")
+                
+                # Accessibility Comparison
+                st.markdown('<h3 class="sub-section-header">♿ Accessibility Comparison</h3>', unsafe_allow_html=True)
+                col_access1, col_access2, col_access3 = st.columns(3)
+                with col_access1:
+                    st.metric("Accessibility Similarity", f"{comparison.accessibility.similarity_score:.1f}%")
+                with col_access2:
+                    st.metric("LLM Score Diff", f"{comparison.accessibility.llm_score_diff:+.1f}")
+                with col_access3:
+                    st.metric("Scraper Score Diff", f"{comparison.accessibility.scraper_score_diff:+.1f}")
+                
+                if comparison.accessibility.rendering_difference:
+                    st.info(f"🔄 **Rendering Difference:** {comparison.accessibility.rendering_difference}")
+                
+                st.markdown("---")
+                
+                # Technical Comparison
+                st.markdown('<h3 class="sub-section-header">⚙️ Technical Comparison</h3>', unsafe_allow_html=True)
+                col_tech1, col_tech2 = st.columns(2)
+                with col_tech1:
+                    st.metric("Technical Similarity", f"{comparison.technical.similarity_score:.1f}%")
+                with col_tech2:
+                    st.metric("Scripts Difference", f"{comparison.technical.script_count_diff:+}")
+                
+                # Key insights
+                st.markdown('<h3 class="sub-section-header">💡 Key Insights</h3>', unsafe_allow_html=True)
+                for insight in comparison.key_insights:
+                    st.info(f"• {insight}")
+                
+                st.markdown("---")
+                
+                # Additional differences
+                st.markdown('<h3 class="sub-section-header">🔍 Additional Differences</h3>', unsafe_allow_html=True)
+                
+                # Meta tags
+                total_meta_diff = (
+                    len(comparison.technical.meta_tags_only_in_url1) +
+                    len(comparison.technical.meta_tags_only_in_url2)
+                )
+                if total_meta_diff > 0:
+                    st.write(f"• Meta tags: {total_meta_diff} different tags between sites")
+                
+                # Structured data
+                total_struct_diff = (
+                    len(comparison.technical.structured_data_only_in_url1) -
+                    len(comparison.technical.structured_data_only_in_url2)
+                )
+                if total_struct_diff != 0:
+                    st.write(f"• Structured data: {abs(total_struct_diff)} {'more' if total_struct_diff > 0 else 'fewer'} items in second site")
+
+                st.markdown("---")
+
+                # Recommendations
+                if comparison.recommendations:
+                    st.markdown('<h3 class="sub-section-header">💡 Recommendations</h3>', unsafe_allow_html=True)
+                    for rec in comparison.recommendations:
+                        st.info(f"• {rec}")
+        
+        with tabs[1]:  # Executive Summary
             st.markdown('<h2 class="section-header">🎯 Executive Summary & Key Takeaways</h2>', unsafe_allow_html=True)
             
             if st.session_state.analyzed_url:
@@ -1332,73 +1820,267 @@ def main():
             else:
                 st.info("No URL analyzed yet. Please enter a URL in the sidebar and click 'Start Analysis'.")
         
-        with tabs[1]:  # Overview
-            st.markdown('<h2 class="section-header">Detailed Analysis Breakdown</h2>', unsafe_allow_html=True)
+        with tabs[2]:  # Overview
+            st.markdown('<h2 class="section-header">📊 Detailed Analysis Breakdown</h2>', unsafe_allow_html=True)
             
-            if st.session_state.score:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown('<h3 class="sub-section-header">🎯 Scraper Friendliness Breakdown</h3>', unsafe_allow_html=True)
-                    
-                    components = [
-                        st.session_state.score.scraper_friendliness.static_content_quality,
-                        st.session_state.score.scraper_friendliness.semantic_html_structure,
-                        st.session_state.score.scraper_friendliness.structured_data_implementation,
-                        st.session_state.score.scraper_friendliness.meta_tag_completeness,
-                        st.session_state.score.scraper_friendliness.javascript_dependency,
-                        st.session_state.score.scraper_friendliness.crawler_accessibility
-                    ]
-                    
-                    for comp in components:
-                        st.markdown(f"**{comp.name}**: {comp.score:.1f}/{comp.max_score:.0f} ({comp.percentage:.0f}%)")
-                        st.progress(comp.percentage / 100)
-                        
-                        if comp.strengths:
-                            with st.expander("✅ Strengths"):
-                                for strength in comp.strengths:
-                                    st.markdown(f"- {strength}")
-                        
-                        if comp.issues:
-                            with st.expander("⚠️ Issues"):
-                                for issue in comp.issues:
-                                    st.markdown(f"- {issue}")
-                        
-                        st.markdown("---")
-                
-                with col2:
-                    st.markdown('<h3 class="sub-section-header">🤖 LLM Accessibility Breakdown</h3>', unsafe_allow_html=True)
-                    
-                    st.info("""
-                    LLM scoring emphasizes content quality and semantic structure over
-                    JavaScript dependency, as LLMs can use dynamic rendering capabilities.
-                    """)
-                    
-                    llm_components = [
-                        st.session_state.score.llm_accessibility.static_content_quality,
-                        st.session_state.score.llm_accessibility.semantic_html_structure,
-                        st.session_state.score.llm_accessibility.structured_data_implementation,
-                        st.session_state.score.llm_accessibility.meta_tag_completeness
-                    ]
-                    
-                    for comp in llm_components:
-                        st.markdown(f"**{comp.name}**: {comp.score:.1f}/{comp.max_score:.0f} ({comp.percentage:.0f}%)")
-                        st.progress(comp.percentage / 100)
-                        if comp.strengths:
-                            with st.expander("✅ Strengths"):
-                                for strength in comp.strengths:
-                                    st.markdown(f"- {strength}")
-                        if comp.issues:
-                            with st.expander("⚠️ Issues"):
-                                for issue in comp.issues:
-                                    st.markdown(f"- {issue}")
-                        st.markdown("---")
+            # Debug information
+            with st.expander("🔍 Debug Info (click to expand)", expanded=False):
+                st.write("comparison_enabled:", st.session_state.comparison_enabled)
+                st.write("comparison_url:", st.session_state.comparison_url)
+                st.write("comparison_results exists:", st.session_state.comparison_results is not None)
+                if st.session_state.comparison_results:
+                    st.write("comparison_results type:", type(st.session_state.comparison_results).__name__)
+            
+            if not st.session_state.comparison_enabled:
+                st.info("✨ **Enable website comparison in the sidebar** to compare two websites side-by-side!")
+            elif not st.session_state.comparison_url:
+                st.info("📝 **Enter a comparison URL in the sidebar** to start the comparison.")
+            elif not st.session_state.comparison_results:
+                st.info("▶️ **Click 'Analyze Website' button** to run the comparison analysis.")
             else:
-                st.info(f"**'Overview' tab is populated only after a 'Comprehensive Analysis'.** Please select this option from the sidebar to view full score breakdowns.")
-                if st.session_state.last_analysis_type:
-                    st.markdown(f"Currently showing results for: **{st.session_state.last_analysis_type}**")
+                # We have comparison results - display them!
+                comparison = st.session_state.comparison_results
+                
+                # URLs being compared
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem;">
+                    <h3 style="color: white; margin: 0 0 1rem 0;">Comparing:</h3>
+                    <p style="color: white; margin: 0.5rem 0;"><strong>URL 1:</strong> <code>{comparison.url1}</code></p>
+                    <p style="color: white; margin: 0.5rem 0;"><strong>URL 2:</strong> <code>{comparison.url2}</code></p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+                # Overall similarity score
+                st.metric(
+                    "🎯 Overall Similarity",
+                    f"{comparison.overall_similarity_score:.1f}%",
+                    help="How similar the two websites are across all dimensions"
+                )
+                
+                # Score Breakdown
+                st.markdown('<h3 class="sub-section-header">📊 Similarity Score Breakdown</h3>', unsafe_allow_html=True)
+                st.markdown("""
+                The overall similarity score is calculated from three main components:
+                1. **Content Similarity (40%)**: Text content and HTML structure
+                2. **Accessibility (30%)**: LLM and scraper friendliness scores
+                3. **Technical (30%)**: JavaScript, meta tags, and structured data
+                """)
+            
+                # Add calculation methodology display
+                with st.expander("🧮 Detailed Calculation Methodology", expanded=True):
+                    st.markdown("""
+                    ### Formula
+                    ```
+                    Overall Similarity = (Content × 40%) + (Accessibility × 30%) + (Technical × 30%)
+                
+                    Where:
+                      Content = (Text Similarity × 60%) + (Structure Similarity × 40%)
+                      Accessibility = 100% - |LLM Score Diff| - |Scraper Score Diff|
+                      Technical = 100% - (Number of Key Differences × 10 points each)
+                    ```
+                    """)
+                
+                    # Show actual calculation
+                    st.markdown("### Your Calculation:")
+                
+                    # Content calculation
+                    text_sim = comparison.content_comparison.text_similarity_score
+                    struct_sim = comparison.content_comparison.structure_similarity_score
+                    content_calc = text_sim * 0.6 + struct_sim * 0.4
+                    st.write(f"**Content:** ({text_sim:.1f}% × 0.6) + ({struct_sim:.1f}% × 0.4) = {content_calc:.1f}%")
+                    st.write(f"  → Contribution: {content_calc:.1f}% × 0.4 = **{content_calc * 0.4:.1f}%**")
+                
+                    # Accessibility calculation
+                    llm_diff = abs(comparison.accessibility_comparison.llm_score_diff) if comparison.accessibility_comparison.llm_score_diff else 0
+                    scraper_diff = abs(comparison.accessibility_comparison.scraper_score_diff) if comparison.accessibility_comparison.scraper_score_diff else 0
+                    access_calc = max(0.0, 100.0 - llm_diff - scraper_diff)
+                    st.write(f"**Accessibility:** 100% - {llm_diff:.1f} - {scraper_diff:.1f} = {access_calc:.1f}%")
+                    st.write(f"  → Contribution: {access_calc:.1f}% × 0.3 = **{access_calc * 0.3:.1f}%**")
+                
+                    # Technical calculation
+                    tech_diffs = len(comparison.technical_comparison.key_differences)
+                    tech_calc = max(0.0, 100.0 - (tech_diffs * 10))
+                    st.write(f"**Technical:** 100% - ({tech_diffs} differences × 10) = {tech_calc:.1f}%")
+                    st.write(f"  → Contribution: {tech_calc:.1f}% × 0.3 = **{tech_calc * 0.3:.1f}%**")
+                
+                    # Final total
+                    final_total = (content_calc * 0.4) + (access_calc * 0.3) + (tech_calc * 0.3)
+                    st.markdown(f"""
+                    ---
+                    **Final Overall Similarity:** {content_calc * 0.4:.1f}% + {access_calc * 0.3:.1f}% + {tech_calc * 0.3:.1f}% = **{final_total:.1f}%**
+                    """)
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    content_score = (
+                        comparison.content_comparison.text_similarity_score * 0.6 +
+                        comparison.content_comparison.structure_similarity_score * 0.4
+                    ) * 0.4
+                    st.metric(
+                        "Content Score",
+                        f"{content_score:.1f}%",
+                        help="40% weight: Text similarity (60%) + Structure similarity (40%)"
+                    )
+                with col2:
+                    accessibility_score = 100.0
+                    if comparison.accessibility_comparison.llm_score_diff:
+                        accessibility_score -= abs(comparison.accessibility_comparison.llm_score_diff)
+                    if comparison.accessibility_comparison.scraper_score_diff:
+                        accessibility_score -= abs(comparison.accessibility_comparison.scraper_score_diff)
+                    accessibility_score = max(0.0, accessibility_score) * 0.3
+                    st.metric(
+                        "Accessibility Score",
+                        f"{accessibility_score:.1f}%",
+                        help="30% weight: Based on LLM and scraper score differences"
+                    )
+                with col3:
+                    technical_score = (100.0 - len(comparison.technical_comparison.key_differences) * 10) * 0.3
+                    technical_score = max(0.0, technical_score)
+                    st.metric(
+                        "Technical Score",
+                        f"{technical_score:.1f}%",
+                        help="30% weight: Based on technical differences found"
+                    )
+                
+                st.markdown("---")
+            
+                # Key insights
+                st.markdown('<h3 class="sub-section-header">🔍 Key Insights</h3>', unsafe_allow_html=True)
+                for insight in comparison.key_insights:
+                    if insight.startswith("Content differences:"):
+                        st.markdown(f"**{insight}**")
+                    elif insight.startswith("Accessibility differences:"):
+                        st.markdown(f"**{insight}**")
+                    elif insight.startswith("Technical differences:"):
+                        st.markdown(f"**{insight}**")
+                    else:
+                        st.write(insight)
+                
+                st.markdown("---")
+            
+                # Content comparison
+                st.markdown('<h3 class="sub-section-header">📝 Content Comparison</h3>', unsafe_allow_html=True)
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric(
+                        "Text Similarity",
+                        f"{comparison.content_comparison.text_similarity_score:.1f}%",
+                        help="How similar the text content is between the two sites"
+                    )
+                with col2:
+                    st.metric(
+                        "Structure Similarity",
+                        f"{comparison.content_comparison.structure_similarity_score:.1f}%",
+                        help="How similar the HTML structure is between the two sites"
+                    )
+                with col3:
+                    word_diff = comparison.content_comparison.word_count_diff
+                    st.metric(
+                        "Word Count Difference",
+                        f"{abs(word_diff):,}",
+                        f"{'More' if word_diff > 0 else 'Fewer'} words in second site",
+                        help="Difference in total word count between the two sites"
+                    )
+
+                # Content details
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("Element Differences:")
+                    st.write(f"• Links: {abs(comparison.content_comparison.links_diff)} {'more' if comparison.content_comparison.links_diff > 0 else 'fewer'}")
+                    st.write(f"• Images: {abs(comparison.content_comparison.images_diff)} {'more' if comparison.content_comparison.images_diff > 0 else 'fewer'}")
+                with col2:
+                    st.write(f"• Tables: {abs(comparison.content_comparison.tables_diff)} {'more' if comparison.content_comparison.tables_diff > 0 else 'fewer'}")
+                    st.write(f"• Lists: {abs(comparison.content_comparison.lists_diff)} {'more' if comparison.content_comparison.lists_diff > 0 else 'fewer'}")
+
+                st.markdown("---")
+
+                # Accessibility comparison
+                st.markdown('<h3 class="sub-section-header">♿ Accessibility Comparison</h3>', unsafe_allow_html=True)
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    llm_diff = comparison.accessibility_comparison.llm_score_diff
+                    st.metric(
+                        "LLM Score Difference",
+                        f"{abs(llm_diff):.1f}",
+                        f"{'Better' if llm_diff > 0 else 'Worse'} in second site",
+                        help="Difference in LLM accessibility scores"
+                    )
+                with col2:
+                    scraper_diff = comparison.accessibility_comparison.scraper_score_diff
+                    st.metric(
+                        "Scraper Score Difference",
+                        f"{abs(scraper_diff):.1f}",
+                        f"{'Better' if scraper_diff > 0 else 'Worse'} in second site",
+                        help="Difference in scraper friendliness scores"
+                    )
+
+                st.info(comparison.accessibility_comparison.ssr_comparison)
+
+                if comparison.accessibility_comparison.bot_directives_comparison:
+                    with st.expander("🤖 Bot Directives Comparison"):
+                        bot_diff = comparison.accessibility_comparison.bot_directives_comparison
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write("First Site:")
+                            st.write(f"• robots.txt: {'Present' if bot_diff['robots_txt_present'][0] else 'Missing'}")
+                            st.write(f"• llms.txt: {'Present' if bot_diff['llms_txt_present'][0] else 'Missing'}")
+                        with col2:
+                            st.write("Second Site:")
+                            st.write(f"• robots.txt: {'Present' if bot_diff['robots_txt_present'][1] else 'Missing'}")
+                            st.write(f"• llms.txt: {'Present' if bot_diff['llms_txt_present'][1] else 'Missing'}")
+
+                        compat_diff = bot_diff.get('compatibility_score_diff', 0)
+                        st.metric(
+                            "Compatibility Score Difference",
+                            f"{abs(compat_diff):.1f}",
+                            f"{'Better' if compat_diff > 0 else 'Worse'} in second site"
+                        )
+
+                st.markdown("---")
+
+                # Technical comparison
+                st.markdown('<h3 class="sub-section-header">⚙️ Technical Comparison</h3>', unsafe_allow_html=True)
+
+                js_diff = comparison.technical_comparison.js_usage_diff
+                meta_diff = comparison.technical_comparison.meta_tags_diff
+                struct_diff = comparison.technical_comparison.structured_data_diff
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("JavaScript Usage:")
+                    st.write(f"• Scripts: {abs(js_diff['total_scripts_diff'])} {'more' if js_diff['total_scripts_diff'] > 0 else 'fewer'} in second site")
+                    if js_diff['frameworks']:
+                        st.write("• Additional frameworks in second site:", ", ".join(js_diff['frameworks']))
+                    if js_diff['spa_difference']:
+                        st.write("• Different application architecture")
+                    if js_diff['dynamic_content_difference']:
+                        st.write("• Different dynamic content handling")
+
+                with col2:
+                    st.write("Meta Tags & SEO:")
+                    st.write(f"• Open Graph tags: {abs(meta_diff['og_tags_diff'])} {'more' if meta_diff['og_tags_diff'] > 0 else 'fewer'} in second site")
+                    st.write(f"• Twitter Card tags: {abs(meta_diff['twitter_tags_diff'])} {'more' if meta_diff['twitter_tags_diff'] > 0 else 'fewer'} in second site")
+
+                    total_struct_diff = (
+                        struct_diff['json_ld_diff'] +
+                        struct_diff['microdata_diff'] +
+                        struct_diff['rdfa_diff']
+                    )
+                    if total_struct_diff != 0:
+                        st.write(f"• Structured data: {abs(total_struct_diff)} {'more' if total_struct_diff > 0 else 'fewer'} items in second site")
+
+                st.markdown("---")
+
+                # Recommendations
+                if comparison.recommendations:
+                    st.markdown('<h3 class="sub-section-header">💡 Recommendations</h3>', unsafe_allow_html=True)
+                    for rec in comparison.recommendations:
+                        st.info(f"• {rec}")
         
-        with tabs[2]:  # LLM Analysis
+        with tabs[3]:  # LLM Analysis
             st.markdown('<h2 class="section-header">🤖 LLM Accessibility Analysis</h2>', unsafe_allow_html=True)
             
             if st.session_state.llm_report:
@@ -1509,7 +2191,251 @@ def main():
             else:
                 st.info("LLM analysis not available. Please run the analysis first with **'Comprehensive Analysis'** or **'LLM Accessibility Only'**.")
         
-        with tabs[3]:  # Enhanced LLM Analysis
+        with tabs[4]:  # LLM Visibility
+            st.markdown('<h2 class="section-header">👁️ LLM Content Visibility</h2>', unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h4 style="color: #495057; margin-bottom: 15px;">🔍 See Exactly What LLMs See</h4>
+                <p style="color: #6c757d; margin-bottom: 10px;">This section shows the raw content that Large Language Models receive when they fetch your website.</p>
+                <p style="color: #6c757d; margin-bottom: 0;">No formatting, no summaries - exactly as LLMs see it.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.session_state.url:
+                # Add LLM Visibility Analysis
+                with st.spinner("Analyzing LLM content visibility..."):
+                    try:
+                        with LLMContentViewer() as viewer:
+                            visibility_analysis = viewer.analyze_llm_visibility(st.session_state.url)
+                            
+                            # Display visibility score
+                            score = visibility_analysis.visibility_score
+                            if score >= 80:
+                                score_color = "#28a745"
+                                grade = "Excellent"
+                            elif score >= 60:
+                                score_color = "#17a2b8"
+                                grade = "Good"
+                            elif score >= 40:
+                                score_color = "#ffc107"
+                                grade = "Fair"
+                            else:
+                                score_color = "#dc3545"
+                                grade = "Poor"
+                            
+                            st.markdown(f"""
+                            <div style="text-align: center; background-color: {score_color}20; border: 2px solid {score_color}; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                                <h3 style="color: {score_color}; margin-bottom: 10px;">LLM Visibility Score: {score:.1f}/100</h3>
+                                <p style="color: {score_color}; font-size: 1.2rem; margin: 0;">Grade: {grade}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Content breakdown
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.subheader("📄 Raw Content (What LLMs See)")
+                                st.markdown("""
+                                <div style="background-color: #ffffff; border: 1px solid #ced4da; border-radius: 4px; padding: 15px; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.4; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">
+                                """, unsafe_allow_html=True)
+                                
+                                # Show first 1000 characters of raw content
+                                preview_content = visibility_analysis.llm_visible_content[:1000]
+                                if len(visibility_analysis.llm_visible_content) > 1000:
+                                    preview_content += "\n\n... (content truncated, download full content below)"
+                                
+                                st.text(preview_content)
+                                st.markdown("</div>", unsafe_allow_html=True)
+                                
+                                # Download button
+                                st.download_button(
+                                    label="📥 Download Full Raw Content",
+                                    data=visibility_analysis.llm_visible_content,
+                                    file_name=f"llm_content_{int(time.time())}.txt",
+                                    mime="text/plain"
+                                )
+                            
+                            with col2:
+                                st.subheader("📊 Content Analysis")
+                                
+                                visible = visibility_analysis.content_breakdown
+                                st.metric("Total Characters", f"{visible['total_content']:,}")
+                                st.metric("Visibility Percentage", f"{visible['visible_percentage']}%")
+                                st.metric("Content Type", visible['content_type'].title())
+                                
+                                st.subheader("❌ Hidden Content Issues")
+                                hidden = visibility_analysis.hidden_content_summary
+                                
+                                for issue, status in hidden.items():
+                                    if status:
+                                        st.error(f"⚠️ {issue.replace('_', ' ').title()}")
+                                    else:
+                                        st.success(f"✅ {issue.replace('_', ' ').title()}")
+                            
+                            # Recommendations
+                            st.subheader("🎯 LLM Visibility Recommendations")
+                            
+                            for recommendation in visibility_analysis.recommendations:
+                                if "CRITICAL" in recommendation:
+                                    st.error(f"🚨 **{recommendation}**")
+                                elif "HIGH" in recommendation:
+                                    st.warning(f"⚠️ **{recommendation}**")
+                                else:
+                                    st.info(f"💡 **{recommendation}**")
+                            
+                            # Additional insights
+                            st.subheader("💡 Key Insights")
+                            st.markdown("""
+                            **What LLMs Can See:**
+                            - All visible text content (headings, paragraphs, links)
+                            - Meta tags (title, description, keywords)
+                            - Structured data (JSON-LD, Microdata, RDFa)
+                            - Semantic HTML elements
+                            
+                            **What LLMs Cannot See:**
+                            - JavaScript-executed content (React, Vue, Angular SPAs)
+                            - AJAX-loaded content
+                            - Dynamic forms and interactions
+                            - Client-side rendered content
+                            
+                            **Best Practices:**
+                            - Use server-side rendering (SSR) for critical content
+                            - Implement semantic HTML structure
+                            - Add JSON-LD structured data
+                            - Provide static HTML fallbacks for dynamic features
+                            """)
+                            
+                            # Search Simulation Section
+                            st.markdown("---")
+                            st.subheader("🔍 Search Simulation")
+                            st.markdown("**See how your content appears in LLM search results:**")
+                            
+                            # Search query input
+                            search_query = st.text_input(
+                                "Enter search query",
+                                placeholder="mortgage rates",
+                                help="Enter terms that users might search for to find your content"
+                            )
+                            
+                            if search_query:
+                                with st.spinner("Simulating LLM search results..."):
+                                    search_results = viewer.simulate_llm_search(search_query)
+                                
+                                st.markdown("**Search Results (What LLMs See):**")
+                                
+                                for i, result in enumerate(search_results, 1):
+                                    with st.container():
+                                        st.markdown(f"""
+                                        <div style="background-color: #ffffff; border: 1px solid #e9ecef; border-radius: 6px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                            <div style="font-size: 1.1rem; font-weight: bold; color: #1a73e8; margin-bottom: 5px;">{result.title}</div>
+                                            <div style="font-size: 0.9rem; color: #5f6368; margin-bottom: 8px;">{result.url}</div>
+                                            <div style="font-size: 0.95rem; line-height: 1.4; color: #3c4043;">{result.snippet}</div>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                        
+                                        # Show relevance score
+                                        col1, col2, col3 = st.columns(3)
+                                        with col1:
+                                            st.metric("Relevance", f"{result.relevance_score:.2f}")
+                                        with col2:
+                                            st.metric("Source", result.source)
+                                        with col3:
+                                            st.metric("Result #", i)
+                                        
+                                        st.divider()
+                                
+                                # Search insights
+                                st.subheader("🔍 Search Insights")
+                                st.info(f"""
+                                **What LLMs see in search results:**
+                                - **Titles:** {len(search_results)} result titles
+                                - **Snippets:** Brief content summaries
+                                - **URLs:** Direct links to pages
+                                - **Relevance:** How well results match the query
+                                
+                                **Key Points:**
+                                - LLMs use these snippets to understand content before visiting pages
+                                - Snippet quality affects whether LLMs will fetch the full page
+                                - Titles and descriptions are crucial for search visibility
+                                """)
+                            
+                    except Exception as e:
+                        st.error(f"Error analyzing LLM visibility: {str(e)}")
+                        st.info("Please ensure the URL is accessible and try again.")
+            else:
+                st.info("Please enter a URL and run the analysis to see LLM content visibility.")
+        
+        with tabs[5]:  # Recommendations
+            st.markdown('<h2 class="section-header">💡 Optimization Recommendations</h2>', unsafe_allow_html=True)
+            
+            if st.session_state.score and st.session_state.score.recommendations:
+                st.markdown("### 📋 Analysis Summary")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Total Recommendations", len(st.session_state.score.recommendations))
+                with col2:
+                    critical_count = sum(1 for r in st.session_state.score.recommendations if r.priority == "CRITICAL")
+                    st.metric("Critical Issues", critical_count, delta="High priority", delta_color="inverse" if critical_count > 0 else "off")
+                with col3:
+                    high_count = sum(1 for r in st.session_state.score.recommendations if r.priority == "HIGH")
+                    st.metric("High Priority", high_count)
+                
+                st.markdown("---")
+                
+                # Group by priority
+                critical_recs = [r for r in st.session_state.score.recommendations if r.priority == "CRITICAL"]
+                high_recs = [r for r in st.session_state.score.recommendations if r.priority == "HIGH"]
+                medium_recs = [r for r in st.session_state.score.recommendations if r.priority == "MEDIUM"]
+                
+                # Critical Issues
+                if critical_recs:
+                    st.markdown('<h3 class="sub-section-header">🚨 Critical Issues</h3>', unsafe_allow_html=True)
+                    for i, rec in enumerate(critical_recs, 1):
+                        with st.expander(f"CRITICAL: {rec.title}", expanded=True):
+                            st.markdown(f"**Issue:** {rec.description}")
+                            st.markdown(f"**Category:** `{rec.category}`")
+                            if rec.code_example:
+                                st.markdown("**💻 Code Example:**")
+                                st.code(rec.code_example, language="html")
+                            st.markdown("---")
+                            st.markdown(f"**Impact on Scraper Friendliness:** {rec.impact.scraper_friendliness}")
+                            st.markdown(f"**Impact on LLM Accessibility:** {rec.impact.llm_accessibility}")
+                
+                # High Priority
+                if high_recs:
+                    st.markdown('<h3 class="sub-section-header">⚠️ High Priority</h3>', unsafe_allow_html=True)
+                    for i, rec in enumerate(high_recs, 1):
+                        with st.expander(f"HIGH: {rec.title}"):
+                            st.markdown(f"**Issue:** {rec.description}")
+                            st.markdown(f"**Category:** `{rec.category}`")
+                            if rec.code_example:
+                                st.markdown("**💻 Code Example:**")
+                                st.code(rec.code_example, language="html")
+                            st.markdown("---")
+                            st.markdown(f"**Impact on Scraper Friendliness:** {rec.impact.scraper_friendliness}")
+                            st.markdown(f"**Impact on LLM Accessibility:** {rec.impact.llm_accessibility}")
+                
+                # Medium Priority
+                if medium_recs:
+                    st.markdown('<h3 class="sub-section-header">📝 Medium Priority</h3>', unsafe_allow_html=True)
+                    for i, rec in enumerate(medium_recs, 1):
+                        with st.expander(f"MEDIUM: {rec.title}"):
+                            st.markdown(f"**Issue:** {rec.description}")
+                            st.markdown(f"**Category:** `{rec.category}`")
+                            if rec.code_example:
+                                st.markdown("**💻 Code Example:**")
+                                st.code(rec.code_example, language="html")
+                            st.markdown("---")
+                            st.markdown(f"**Impact on Scraper Friendliness:** {rec.impact.scraper_friendliness}")
+                            st.markdown(f"**Impact on LLM Accessibility:** {rec.impact.llm_accessibility}")
+            else:
+                st.info("**'Recommendations' tab is populated only after a 'Comprehensive Analysis'.** Please select this option from the sidebar.")
+                if st.session_state.last_analysis_type:
+                    st.markdown(f"Currently showing results for: **{st.session_state.last_analysis_type}**")
+        
+        with tabs[6]:  # Enhanced LLM Analysis
             st.markdown('<h2 class="section-header">🔬 Enhanced LLM Analysis</h2>', unsafe_allow_html=True)
             
             if st.session_state.enhanced_llm_report:
@@ -1560,58 +2486,112 @@ def main():
             else:
                 st.info("Enhanced LLM analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
         
-        with tabs[4]:  # LLMs.txt Analysis
-            st.markdown('<h2 class="section-header">📄 LLMs.txt Analysis</h2>', unsafe_allow_html=True)
+        with tabs[7]:  # Bot Directives Analysis
+            st.markdown('<h2 class="section-header">📄 Bot Directives Analysis</h2>', unsafe_allow_html=True)
             
-            if st.session_state.llms_txt_analysis:
-                analysis = st.session_state.llms_txt_analysis
+            if st.session_state.bot_directives:
+                analysis = st.session_state.bot_directives
                 
+                # Overall metrics
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("LLMs.txt Present", "✅ Yes" if analysis.is_present else "❌ No")
+                    st.metric("Compatibility Score", f"{analysis.compatibility_score:.1f}/100")
                 with col2:
-                    st.metric("Quality Score", f"{analysis.quality_score:.1f}/100" if analysis.is_present else "N/A")
+                    st.metric("robots.txt", "✅ Present" if analysis.robots_txt.is_present else "❌ Missing")
                 with col3:
-                    st.metric("Format Valid", "✅ Yes" if analysis.format_valid else "❌ No")
+                    st.metric("llms.txt", "✅ Present" if analysis.llms_txt.is_present else "❌ Missing")
                 
                 st.markdown("---")
                 
-                if analysis.is_present:
-                    st.markdown('<h3 class="sub-section-header">📄 File Content</h3>', unsafe_allow_html=True)
-                    st.code(analysis.content, language="markdown")
+                # robots.txt Analysis
+                st.markdown('<h3 class="sub-section-header">🤖 robots.txt Analysis</h3>', unsafe_allow_html=True)
+                
+                if analysis.robots_txt.is_present:
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("User Agents", len(analysis.robots_txt.user_agents))
+                    with col2:
+                        st.metric("Disallowed Paths", len(analysis.robots_txt.disallowed_paths))
+                    with col3:
+                        st.metric("Sitemaps", len(analysis.robots_txt.sitemaps))
                     
-                    if analysis.sections:
-                        st.markdown('<h3 class="sub-section-header">📋 Sections Found</h3>', unsafe_allow_html=True)
-                        for section_name, section_content in analysis.sections.items():
-                            st.markdown(f"**{section_name}:**")
-                            st.write(section_content)
-                            st.markdown("---")
+                    with st.expander("📄 View robots.txt Content"):
+                        st.code(analysis.robots_txt.content, language="text")
                     
-                    if analysis.benefits:
-                        st.markdown('<h3 class="sub-section-header">✅ Benefits</h3>', unsafe_allow_html=True)
-                        for benefit in analysis.benefits:
-                            st.write(f"• {benefit}")
+                    if analysis.robots_txt.user_agents:
+                        with st.expander("🤖 User Agents"):
+                            for agent in analysis.robots_txt.user_agents:
+                                st.write(f"• {agent}")
                     
-                    if analysis.issues:
-                        st.markdown('<h3 class="sub-section-header">⚠️ Issues Found</h3>', unsafe_allow_html=True)
-                        for issue in analysis.issues:
-                            st.warning(f"• {issue}")
+                    if analysis.robots_txt.disallowed_paths:
+                        with st.expander("🚫 Disallowed Paths"):
+                            for path in analysis.robots_txt.disallowed_paths:
+                                st.write(f"• {path}")
                     
-                    if analysis.recommendations:
-                        st.markdown('<h3 class="sub-section-header">💡 Recommendations</h3>', unsafe_allow_html=True)
-                        for rec in analysis.recommendations:
-                            st.info(f"• {rec}")
+                    if analysis.robots_txt.allowed_paths:
+                        with st.expander("✅ Allowed Paths"):
+                            for path in analysis.robots_txt.allowed_paths:
+                                st.write(f"• {path}")
+                    
+                    if analysis.robots_txt.sitemaps:
+                        with st.expander("🗺️ Sitemaps"):
+                            for sitemap in analysis.robots_txt.sitemaps:
+                                st.write(f"• {sitemap}")
+                    
+                    if analysis.robots_txt.crawl_delay:
+                        st.info(f"⏱️ Crawl Delay: {analysis.robots_txt.crawl_delay} seconds")
+                else:
+                    st.warning("No robots.txt file found at the website root.")
+                    st.info("robots.txt is essential for guiding web crawlers on what content they can and cannot access.")
+                
+                st.markdown("---")
+                
+                # llms.txt Analysis
+                st.markdown('<h3 class="sub-section-header">🤖 llms.txt Analysis</h3>', unsafe_allow_html=True)
+                
+                if analysis.llms_txt.is_present:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Quality Score", f"{analysis.llms_txt.quality_score:.1f}/100")
+                    with col2:
+                        st.metric("Format Valid", "✅ Yes" if analysis.llms_txt.format_valid else "❌ No")
+                    
+                    with st.expander("📄 View llms.txt Content"):
+                        st.code(analysis.llms_txt.content, language="markdown")
+                    
+                    if analysis.llms_txt.sections:
+                        st.markdown('<h4 class="sub-section-header">📋 Sections Found</h4>', unsafe_allow_html=True)
+                        for section_name, section_content in analysis.llms_txt.sections.items():
+                            with st.expander(f"📝 {section_name}"):
+                                for line in section_content:
+                                    st.write(f"• {line}")
+                    
+                    if analysis.llms_txt.benefits:
+                        with st.expander("✅ Benefits"):
+                            for benefit in analysis.llms_txt.benefits:
+                                st.write(f"• {benefit}")
                 else:
                     st.warning("No llms.txt file found at the website root.")
                     st.info("**What is llms.txt?** It's a new standard (2024-2025) for guiding AI crawlers to quality content, different from robots.txt which focuses on exclusion.")
-                    
-                    st.markdown('<h3 class="sub-section-header">💡 Recommendations</h3>', unsafe_allow_html=True)
-                    for rec in analysis.recommendations:
+                
+                st.markdown("---")
+                
+                # Combined Analysis
+                st.markdown('<h3 class="sub-section-header">🔄 Combined Analysis</h3>', unsafe_allow_html=True)
+                
+                if analysis.combined_issues:
+                    st.markdown('<h4 class="sub-section-header">⚠️ Issues</h4>', unsafe_allow_html=True)
+                    for issue in analysis.combined_issues:
+                        st.warning(f"• {issue}")
+                
+                if analysis.combined_recommendations:
+                    st.markdown('<h4 class="sub-section-header">💡 Recommendations</h4>', unsafe_allow_html=True)
+                    for rec in analysis.combined_recommendations:
                         st.info(f"• {rec}")
             else:
-                st.info("LLMs.txt analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
+                st.info("Bot directives analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
         
-        with tabs[6]:  # SSR Detection
+        with tabs[8]:  # SSR Detection
             st.markdown('<h2 class="section-header">🔍 Server-Side Rendering (SSR) Detection</h2>', unsafe_allow_html=True)
             
             if st.session_state.ssr_detection:
@@ -1649,7 +2629,7 @@ def main():
             else:
                 st.info("SSR detection not available. Please run a 'Comprehensive Analysis' or 'SSR Detection Only'.")
         
-        with tabs[7]:  # Crawler Testing
+        with tabs[9]:  # Crawler Testing
             st.markdown('<h2 class="section-header">🕷️ Web Crawler Testing</h2>', unsafe_allow_html=True)
             
             if st.session_state.crawler_analysis:
@@ -1683,7 +2663,7 @@ def main():
             else:
                 st.info("Crawler testing not available. Please run a 'Comprehensive Analysis' or 'Web Crawler Testing'.")
         
-        with tabs[8]:  # Evidence Report
+        with tabs[10]:  # Evidence Report
             st.markdown('<h2 class="section-header">📊 Evidence Report</h2>', unsafe_allow_html=True)
             
             if st.session_state.evidence_report:
@@ -1732,7 +2712,7 @@ def main():
             else:
                 st.info("Evidence report not available. Please run a 'Comprehensive Analysis' or 'Web Crawler Testing'.")
         
-        with tabs[9]:  # Content
+        with tabs[11]:  # Content
             st.markdown('<h2 class="section-header">📝 Content Analysis</h2>', unsafe_allow_html=True)
             
             if st.session_state.static_result and st.session_state.static_result.content_analysis:
@@ -1769,7 +2749,7 @@ def main():
             else:
                 st.info("Content analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
         
-        with tabs[10]:  # Structure
+        with tabs[12]:  # Structure
             st.markdown('<h2 class="section-header">🏗️ HTML Structure Analysis</h2>', unsafe_allow_html=True)
             
             if st.session_state.static_result and st.session_state.static_result.structure_analysis:
@@ -1816,7 +2796,7 @@ def main():
             else:
                 st.info("Structure analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
         
-        with tabs[11]:  # Meta Data
+        with tabs[13]:  # Meta Data
             st.markdown('<h2 class="section-header">🏷️ Meta Data Analysis</h2>', unsafe_allow_html=True)
             
             if st.session_state.static_result and st.session_state.static_result.meta_analysis:
@@ -1875,7 +2855,7 @@ def main():
             else:
                 st.info("Meta data analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
         
-        with tabs[12]:  # JavaScript
+        with tabs[14]:  # JavaScript
             st.markdown('<h2 class="section-header">⚡ JavaScript Analysis</h2>', unsafe_allow_html=True)
             
             if st.session_state.static_result and st.session_state.static_result.javascript_analysis:
@@ -1918,99 +2898,7 @@ def main():
             else:
                 st.info("JavaScript analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
         
-        # Add more tabs as needed...
-        with tabs[13]:  # Recommendations
-            st.markdown('<h2 class="section-header">💡 Optimization Recommendations</h2>', unsafe_allow_html=True)
-            
-            if st.session_state.score and st.session_state.score.recommendations:
-                st.markdown("### 📋 Analysis Summary")
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Total Recommendations", len(st.session_state.score.recommendations))
-                with col2:
-                    critical_count = len([r for r in st.session_state.score.recommendations if r.priority.value == "critical"])
-                    st.metric("Critical Issues", critical_count)
-                with col3:
-                    high_count = len([r for r in st.session_state.score.recommendations if r.priority.value == "high"])
-                    st.metric("High Priority", high_count)
-                
-                st.markdown("---")
-                
-                # Group recommendations by priority
-                critical_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "critical"]
-                high_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "high"]
-                medium_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "medium"]
-                low_recs = [r for r in st.session_state.score.recommendations if r.priority.value == "low"]
-                
-                # Display critical recommendations first
-                if critical_recs:
-                    st.markdown("### 🚨 Critical Issues")
-                    for rec in critical_recs:
-                        st.error(f"**{rec.priority.value.upper()}**: {rec.title}")
-                        st.write(rec.description)
-                        if rec.code_example:
-                            with st.expander("💻 Code Example"):
-                                st.code(rec.code_example, language="html")
-                        st.markdown("---")
-                
-                # Display high priority recommendations
-                if high_recs:
-                    st.markdown("### ⚠️ High Priority")
-                    for rec in high_recs:
-                        st.warning(f"**{rec.priority.value.upper()}**: {rec.title}")
-                        st.write(rec.description)
-                        if rec.code_example:
-                            with st.expander("💻 Code Example"):
-                                st.code(rec.code_example, language="html")
-                        st.markdown("---")
-                
-                # Display medium priority recommendations
-                if medium_recs:
-                    st.markdown("### 📝 Medium Priority")
-                    for rec in medium_recs:
-                        st.info(f"**{rec.priority.value.upper()}**: {rec.title}")
-                        st.write(rec.description)
-                    if rec.code_example:
-                        with st.expander("💻 Code Example"):
-                            st.code(rec.code_example, language="html")
-                        st.markdown("---")
-                
-                # Display low priority recommendations
-                if low_recs:
-                    st.markdown("### 💡 Low Priority")
-                    for rec in low_recs:
-                        st.info(f"**{rec.priority.value.upper()}**: {rec.title}")
-                        st.write(rec.description)
-                        if rec.code_example:
-                            with st.expander("💻 Code Example"):
-                                st.code(rec.code_example, language="html")
-                    st.markdown("---")
-                
-                if not st.session_state.score.recommendations:
-                    st.success("🎉 No significant recommendations found - your site is well-optimized!")
-            else:
-                st.markdown("### 📊 No Recommendations Available")
-                st.info("**To see optimization recommendations:**")
-                st.markdown("""
-                1. **Run a Comprehensive Analysis** - Select 'Comprehensive Analysis' from the sidebar
-                2. **Enter a valid URL** - Make sure the URL is accessible
-                3. **Wait for completion** - The analysis will generate specific recommendations
-                
-                **What you'll get:**
-                - 🚨 Critical issues that need immediate attention
-                - ⚠️ High priority improvements for better performance
-                - 📝 Medium priority optimizations
-                - 💡 Low priority enhancements
-                - 💻 Code examples for implementation
-                """)
-                
-                if st.session_state.analyzed_url:
-                    st.markdown(f"**Last analyzed:** `{st.session_state.analyzed_url}`")
-                    st.markdown(f"**Analysis type:** `{st.session_state.last_analysis_type}`")
-                else:
-                    st.markdown("**No URL has been analyzed yet.**")
-        
-        with tabs[14]:  # Export Report
+        with tabs[15]:  # Export Report
             st.markdown('<h2 class="section-header">📥 Export Analysis Report</h2>', unsafe_allow_html=True)
             
             if st.session_state.analysis_complete:
@@ -2165,8 +3053,8 @@ LLM Analysis Score: {st.session_state.llm_report.overall_score:.1f}/100 ({st.ses
                     report_sections.append("✅ Crawler Testing Results")
                 if st.session_state.evidence_report:
                     report_sections.append("✅ Evidence Report")
-                if st.session_state.llms_txt_analysis:
-                    report_sections.append("✅ LLMs.txt Analysis")
+                if st.session_state.bot_directives:
+                    report_sections.append("✅ Bot Directives Analysis")
                 
                 if report_sections:
                     st.write("**Included in this report:**")

@@ -4,7 +4,16 @@ Data models for analysis results
 
 from typing import List, Dict, Optional, Any
 from datetime import datetime
+from enum import Enum
 from pydantic import BaseModel, HttpUrl, Field, ConfigDict
+
+
+class AnalysisStatus(str, Enum):
+    """Analysis status enum"""
+    SUCCESS = "success"
+    ERROR = "error"
+    SKIPPED = "skipped"
+    PARTIAL = "partial"
 
 
 class ContentAnalysis(BaseModel):
@@ -82,6 +91,16 @@ class JavaScriptFramework(BaseModel):
     confidence: float  # 0.0 to 1.0
     indicators: List[str]
 
+    def __hash__(self):
+        """Make JavaScriptFramework hashable by using its name."""
+        return hash(self.name)
+
+    def __eq__(self, other):
+        """Define equality based on name."""
+        if not isinstance(other, JavaScriptFramework):
+            return False
+        return self.name == other.name
+
 
 class JavaScriptAnalysis(BaseModel):
     """JavaScript detection and analysis"""
@@ -127,7 +146,7 @@ class AnalysisResult(BaseModel):
     """Complete analysis result"""
     url: str
     analyzed_at: datetime = Field(default_factory=datetime.now)
-    status: str  # success, error, partial
+    status: AnalysisStatus = Field(default=AnalysisStatus.SUCCESS)
     error_message: Optional[str] = None
     
     # Analysis components
