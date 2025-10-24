@@ -12,12 +12,13 @@ import streamlit as st
 import logging
 from datetime import datetime
 import time
+import json
 import pandas as pd
 import html
 import re
 from typing import Optional, List, Any
 
-from src.analyzers import StaticAnalyzer, DynamicAnalyzer, ContentComparator, ScoringEngine
+from src.analyzers.evidence_framework import EvidenceFramework, StakeLevel, EvidenceLevel
 from src.analyzers.llm_accessibility_analyzer import LLMAccessibilityAnalyzer
 from src.analyzers.ssr_detector import SSRDetector
 from src.analyzers.web_crawler_analyzer import WebCrawlerAnalyzer
@@ -1739,6 +1740,7 @@ def main():
         # Report Tabs
         report_tabs = st.tabs([
             "📊 Evidence Report",
+            "🔬 Evidence Framework",
             "📥 Export Report"
         ])
         
@@ -3575,6 +3577,235 @@ def main():
                     st.success("✅ **Static content detected.** Good for crawler accessibility!")
             else:
                 st.info("JavaScript analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
+        
+        with tabs[11]:  # Evidence Framework
+            st.markdown('<h2 class="section-header">🔬 Evidence-First Framework</h2>', unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="info-box">
+                <h4>🎯 Evidence = Credibility</h4>
+                <p>This framework implements systematic, multi-layered evidence collection optimized for executive presentations. 
+                It follows legal and scientific evidence standards to prove LLM visibility issues beyond all doubt.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.session_state.analyzed_url:
+                # Evidence Framework Controls
+                st.markdown('<h3 class="sub-section-header">⚙️ Evidence Analysis Configuration</h3>', unsafe_allow_html=True)
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    stake_level = st.selectbox(
+                        "Decision Stakes",
+                        options=["LOW", "MEDIUM", "HIGH"],
+                        index=1,
+                        help="LOW: Team buy-in (1-2 hours) | MEDIUM: Department budget (4-8 hours) | HIGH: C-suite commitment (8-16 hours)"
+                    )
+                
+                with col2:
+                    claim_type = st.selectbox(
+                        "Claim to Analyze",
+                        options=[
+                            "LLMs cannot execute JavaScript",
+                            "X% of content is invisible to LLMs", 
+                            "This costs us $X in lost revenue",
+                            "Our competitors are visible and we're not"
+                        ],
+                        help="Select the specific claim you want to prove with evidence"
+                    )
+                
+                if st.button("🔬 Run Evidence Analysis", use_container_width=True):
+                    with st.spinner("Collecting evidence using systematic methodology..."):
+                        try:
+                            # Initialize evidence framework
+                            evidence_framework = EvidenceFramework()
+                            
+                            # Convert stake level
+                            stake_enum = StakeLevel(stake_level.lower())
+                            
+                            # Run evidence analysis
+                            evidence_package = evidence_framework.analyze_llm_visibility_claim(
+                                url=st.session_state.analyzed_url,
+                                claim=claim_type,
+                                stake_level=stake_enum
+                            )
+                            
+                            # Store results
+                            st.session_state.evidence_package = evidence_package
+                            
+                            st.success("✅ Evidence analysis completed!")
+                            
+                        except Exception as e:
+                            st.error(f"❌ Evidence analysis failed: {str(e)}")
+                            logger.error(f"Evidence analysis error: {e}")
+                
+                # Display Evidence Results
+                if hasattr(st.session_state, 'evidence_package') and st.session_state.evidence_package:
+                    evidence_package = st.session_state.evidence_package
+                    
+                    st.markdown('<h3 class="sub-section-header">📊 Evidence Analysis Results</h3>', unsafe_allow_html=True)
+                    
+                    # Triangulation Results
+                    if evidence_package.triangulation:
+                        triangulation = evidence_package.triangulation
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Overall Confidence", f"{triangulation.confidence:.1f}%")
+                        with col2:
+                            st.metric("Error Probability", f"{triangulation.error_probability:.2f}%")
+                        with col3:
+                            st.metric("Evidence Methods", len(evidence_package.evidence_points))
+                        
+                        # Conclusion
+                        if triangulation.confidence >= 95:
+                            st.success(f"🎯 **{triangulation.conclusion}**")
+                        elif triangulation.confidence >= 75:
+                            st.warning(f"⚠️ **{triangulation.conclusion}**")
+                        elif triangulation.confidence >= 51:
+                            st.info(f"ℹ️ **{triangulation.conclusion}**")
+                        else:
+                            st.error(f"❌ **{triangulation.conclusion}**")
+                    
+                    # Evidence Points by Level
+                    st.markdown('<h4 class="sub-section-header">🔍 Evidence Points by Hierarchy</h4>', unsafe_allow_html=True)
+                    
+                    # Group evidence by level
+                    evidence_by_level = {}
+                    for point in evidence_package.evidence_points:
+                        level = point.level.value
+                        if level not in evidence_by_level:
+                            evidence_by_level[level] = []
+                        evidence_by_level[level].append(point)
+                    
+                    # Display evidence by hierarchy (strongest first)
+                    level_order = ['gold', 'strong', 'supporting', 'contextual', 'weak']
+                    level_colors = {
+                        'gold': '🟨',
+                        'strong': '🟩', 
+                        'supporting': '🟦',
+                        'contextual': '🟪',
+                        'weak': '🟫'
+                    }
+                    
+                    for level in level_order:
+                        if level in evidence_by_level:
+                            points = evidence_by_level[level]
+                            color = level_colors.get(level, '⚪')
+                            
+                            with st.expander(f"{color} {level.title()} Evidence ({len(points)} points)", expanded=level in ['gold', 'strong']):
+                                for i, point in enumerate(points, 1):
+                                    st.markdown(f"**{i}. {point.method.replace('_', ' ').title()}**")
+                                    st.write(f"Confidence: {point.confidence:.1f}%")
+                                    st.write(f"Description: {point.description}")
+                                    st.write(f"Replicable: {'✅ Yes' if point.replicable else '❌ No'}")
+                                    st.write(f"Source: {point.source}")
+                                    st.write(f"Timestamp: {point.timestamp}")
+                                    
+                                    # Show key data
+                                    if point.data:
+                                        with st.expander("📊 Evidence Data", expanded=False):
+                                            st.json(point.data)
+                                    st.markdown("---")
+                    
+                    # Business Impact Analysis
+                    if evidence_package.business_impact:
+                        st.markdown('<h4 class="sub-section-header">💰 Business Impact Analysis</h4>', unsafe_allow_html=True)
+                        
+                        impact = evidence_package.business_impact
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Avg Accessibility", f"{impact.get('average_accessibility', 0):.1f}%")
+                        with col2:
+                            st.metric("JS Dependency", f"{impact.get('average_js_dependency', 0):.1f}%")
+                        with col3:
+                            st.metric("Lost Revenue", f"${impact.get('estimated_lost_revenue', 0):,.0f}")
+                        
+                        st.info(f"📈 AI search is growing {impact.get('ai_search_growth', 0)}% YoY and represents {impact.get('current_ai_query_share', 0)}% of queries")
+                    
+                    # Competitive Context
+                    if evidence_package.competitive_context:
+                        st.markdown('<h4 class="sub-section-header">🏆 Competitive Context</h4>', unsafe_allow_html=True)
+                        
+                        context = evidence_package.competitive_context
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Our Score", f"{context.get('our_score', 0):.0f}/100")
+                        with col2:
+                            st.metric("Competitor Avg", f"{context.get('competitor_average', 0):.0f}/100")
+                        with col3:
+                            st.metric("Score Gap", f"{context.get('score_gap', 0):.0f} points")
+                        
+                        if context.get('competitive_disadvantage', False):
+                            st.error("🚨 **Significant competitive disadvantage detected**")
+                        else:
+                            st.success("✅ **Competitive position acceptable**")
+                    
+                    # Recommendations
+                    if evidence_package.recommendations:
+                        st.markdown('<h4 class="sub-section-header">🎯 Evidence-Based Recommendations</h4>', unsafe_allow_html=True)
+                        
+                        for i, rec in enumerate(evidence_package.recommendations, 1):
+                            if rec.startswith("CRITICAL:"):
+                                st.error(f"🚨 **{rec}**")
+                            elif rec.startswith("HIGH:"):
+                                st.warning(f"⚠️ **{rec}**")
+                            else:
+                                st.info(f"ℹ️ **{rec}**")
+                    
+                    # Evidence Report Export
+                    st.markdown('<h4 class="sub-section-header">📥 Export Evidence Report</h4>', unsafe_allow_html=True)
+                    
+                    if st.button("📊 Generate Evidence Report", use_container_width=True):
+                        try:
+                            evidence_framework = EvidenceFramework()
+                            report = evidence_framework.generate_evidence_report(evidence_package)
+                            
+                            # Create downloadable report
+                            report_json = json.dumps(report, indent=2)
+                            
+                            st.download_button(
+                                label="📥 Download Evidence Report (JSON)",
+                                data=report_json,
+                                file_name=f"evidence_report_{st.session_state.analyzed_url.replace('https://', '').replace('/', '_')}.json",
+                                mime="application/json"
+                            )
+                            
+                            st.success("✅ Evidence report generated!")
+                            
+                        except Exception as e:
+                            st.error(f"❌ Report generation failed: {str(e)}")
+                
+                else:
+                    st.info("🔬 **Run Evidence Analysis** to see systematic evidence collection results.")
+                    
+                    # Show evidence hierarchy explanation
+                    st.markdown('<h3 class="sub-section-header">📚 Evidence Hierarchy Guide</h3>', unsafe_allow_html=True)
+                    
+                    evidence_levels = {
+                        "🟨 Gold Standard (95-100%)": "Server logs, full-site audits, published research, vendor confirmation",
+                        "🟩 Strong (80-95%)": "curl with GPTBot, LLMrefs validation, headless browser testing, JS disabled testing", 
+                        "🟦 Supporting (60-80%)": "View Source comparison, individual examples, framework detection",
+                        "🟪 Contextual (40-60%)": "Expert opinions, vendor documentation, conference presentations",
+                        "🟫 Weak (0-40%)": "Assumptions, anecdotes, theoretical extrapolations"
+                    }
+                    
+                    for level, description in evidence_levels.items():
+                        st.markdown(f"**{level}**: {description}")
+                    
+                    st.markdown("""
+                    ### 🎯 Evidence Standards by Decision Stakes
+                    
+                    - **LOW Stakes (51% confidence)**: Preponderance of Evidence - 1-2 hours
+                    - **MEDIUM Stakes (75% confidence)**: Clear and Convincing Evidence - 4-8 hours  
+                    - **HIGH Stakes (95%+ confidence)**: Beyond Reasonable Doubt - 8-16 hours
+                    """)
+            
+            else:
+                st.info("🔬 **Analyze a website first** to use the Evidence Framework.")
         
         with tabs[15]:  # Export Report
             st.markdown('<h2 class="section-header">📥 Export Analysis Report</h2>', unsafe_allow_html=True)

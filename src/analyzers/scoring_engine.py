@@ -274,6 +274,8 @@ class ScoringEngine:
             elif token_word_ratio <= 2.0:
                 score += 1.0
         
+        # Ensure score doesn't exceed max_score
+        score = min(score, max_score)
         percentage = (score / max_score) * 100
         
         return ScoreComponent(
@@ -360,6 +362,8 @@ class ScoringEngine:
         else:
             issues.append(f"Excessive DOM depth ({structure.nested_depth} levels - consider optimization)")
         
+        # Ensure score doesn't exceed max_score
+        score = min(score, max_score)
         percentage = (score / max_score) * 100
         
         return ScoreComponent(
@@ -420,6 +424,8 @@ class ScoringEngine:
         else:
             issues.append("No RDFa markup")
         
+        # Ensure score doesn't exceed max_score
+        score = min(score, max_score)
         percentage = (score / max_score) * 100
         
         return ScoreComponent(
@@ -507,6 +513,8 @@ class ScoringEngine:
         else:
             issues.append("No canonical URL")
         
+        # Ensure score doesn't exceed max_score
+        score = min(score, max_score)
         percentage = (score / max_score) * 100
         
         return ScoreComponent(
@@ -599,6 +607,8 @@ class ScoringEngine:
             score = max(0, score - dependency_penalty)
             issues.append(f"Content is {(1-comparison.similarity_score)*100:.0f}% JavaScript-dependent")
         
+        # Ensure score doesn't exceed max_score
+        score = min(score, max_score)
         percentage = (score / max_score) * 100
         
         return ScoreComponent(
@@ -640,6 +650,8 @@ class ScoringEngine:
         else:
             strengths.append("Crawler directives assumed permissive")
         
+        # Ensure score doesn't exceed max_score
+        score = min(score, max_score)
         percentage = (score / max_score) * 100
         
         return ScoreComponent(
