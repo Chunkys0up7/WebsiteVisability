@@ -14,6 +14,9 @@ import re
 from bs4 import BeautifulSoup
 import time
 
+# Import AnalysisResult for type hints
+from ..models.analysis_result import AnalysisResult
+
 logger = logging.getLogger(__name__)
 
 
