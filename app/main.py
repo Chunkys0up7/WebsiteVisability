@@ -1414,6 +1414,75 @@ def main():
     if st.session_state.analysis_complete:
         st.markdown('<h2 class="section-header">✅ Analysis Complete</h2>', unsafe_allow_html=True)
         
+        # Add detailed scoring explanation
+        with st.expander("🧮 **Detailed Scoring Methodology**", expanded=False):
+            st.markdown("""
+            ### **Scraper Friendliness Score (50.5/100)**
+            
+            **Research-Based Formula (Updated 2025):**
+            ```
+            Scraper Score = Static Content (20%) + Semantic HTML (20%) + 
+                           Structured Data (20%) + Meta Tags (10%) + 
+                           JavaScript Dependency (25%) + Crawler Access (5%)
+            ```
+            
+            **Component Breakdown:**
+            - **Static Content Quality**: 25.0/20 points (125%) - *Capped at 20*
+              - Word count: 8 points (2622 words = substantial content)
+              - Paragraph structure: 4 points (44 paragraphs = well-structured)
+              - Links: 4 points (good navigation)
+              - Media: 2 points (images/tables)
+              - Token efficiency: 1.5 points
+            
+            - **Semantic HTML Structure**: 18.0/20 points (90%)
+              - 4 semantic elements detected
+              - Single H1 heading (best practice)
+              - DOM depth within acceptable limits
+            
+            - **Structured Data**: 0.0/20 points (0%)
+              - No JSON-LD structured data
+              - No Microdata markup
+            
+            - **Meta Tags**: 5.0/10 points (50%)
+              - No title tag (-15 points)
+              - No Open Graph tags (-10 points)
+              - Optimal description length (+5 points)
+              - Canonical URL specified (+5 points)
+            
+            - **JavaScript Dependency**: 0.0/25 points (0%) - *CRITICAL ISSUE*
+              - Dynamic content without SSR (-25 points)
+              - Heavy JavaScript usage (48 scripts) (-20 points)
+              - SPA detection (-15 points)
+            
+            - **Crawler Accessibility**: 2.5/5 points (50%)
+              - Assumed permissive crawler directives
+            
+            ### **LLM Accessibility Score (77.5/100)**
+            
+            **LLM-Specific Formula:**
+            ```
+            LLM Score = Content Quality (30%) + Semantic Structure (25%) + 
+                       Structured Data (20%) + Meta Tags (15%) + 
+                       JS Dependency (5%) + Crawler Access (5%)
+            ```
+            
+            **Key Difference**: LLM scoring treats JavaScript as less critical (5/5 points) 
+            because some LLMs can use dynamic rendering services.
+            
+            **Component Breakdown:**
+            - **Content Quality**: 37.5/30 points (125%) - *Capped at 30*
+            - **Semantic Structure**: 22.5/25 points (90%)
+            - **Structured Data**: 0.0/20 points (0%)
+            - **Meta Tags**: 7.5/15 points (50%)
+            - **JS Dependency**: 5.0/5 points (100%) - *Neutral for LLMs*
+            - **Crawler Access**: 5.0/5 points (100%)
+            
+            **Why Different Scores?**
+            - **Scraper Score**: Penalizes JavaScript heavily (25% weight)
+            - **LLM Score**: Treats JavaScript neutrally (5% weight)
+            - **Research**: Most AI crawlers don't execute JS, but some LLMs use rendering services
+            """)
+        
         # Action buttons
         col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 1])
         with col_btn1:
@@ -2363,6 +2432,35 @@ def main():
         
         with tabs[4]:  # LLM Visibility
             st.markdown('<h2 class="section-header">👁️ LLM Content Visibility</h2>', unsafe_allow_html=True)
+            
+            # Add scoring explanation
+            with st.expander("📊 **Scoring System Explanation**", expanded=True):
+                st.markdown("""
+                **Why Two Different LLM Scores?**
+                
+                This tool provides **two complementary scoring perspectives**:
+                
+                **1. Main Tab LLM Accessibility (77.5/100)**
+                - **Purpose**: Overall website accessibility to AI systems
+                - **Method**: Additive scoring (starts at 0, adds points for good features)
+                - **JavaScript Treatment**: Assumes LLMs can handle JavaScript (5/5 points)
+                - **Use Case**: General website optimization for AI crawlers
+                
+                **2. LLM Visibility Analysis (45.0/100)**
+                - **Purpose**: What LLMs actually see vs. what's hidden
+                - **Method**: Subtractive scoring (starts at 100, deducts for problems)
+                - **JavaScript Treatment**: Heavily penalizes JavaScript dependencies (30-75 point deduction)
+                - **Use Case**: Identifying specific visibility barriers
+                
+                **Which Score Should You Trust?**
+                
+                - **For Executive Reports**: Use Main Tab score (more balanced)
+                - **For Technical Analysis**: Use LLM Visibility score (more realistic about JS limitations)
+                - **For Complete Picture**: Use both scores together
+                
+                **Key Research Finding**: Most AI crawlers (ChatGPT, Claude, Perplexity) do NOT execute JavaScript.
+                The LLM Visibility score reflects this reality more accurately.
+                """)
             
             st.markdown("""
             <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">

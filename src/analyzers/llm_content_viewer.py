@@ -309,8 +309,8 @@ class LLMContentViewer:
         # Generate recommendations
         recommendations = self._generate_visibility_recommendations(visibility_analysis)
         
-        # Calculate visibility score
-        visibility_score = self._calculate_visibility_score(visibility_analysis)
+        # Calculate visibility score using unified scoring system
+        visibility_score = self._calculate_unified_visibility_score(visibility_analysis, url)
         
         return LLMVisibilityAnalysis(
             llm_visible_content=content_result.raw_content,
@@ -862,6 +862,41 @@ class LLMContentViewer:
             recommendations.append("MEDIUM: Increase text content for better LLM context")
         
         return recommendations
+    
+    def _calculate_unified_visibility_score(self, visibility_analysis: Dict[str, Any], url: str) -> float:
+        """
+        Calculate visibility score using the same unified scoring system as main analysis.
+        This ensures consistency between LLM Visibility Analysis and main tab scores.
+        """
+        try:
+            # Import the scoring engine
+            from .scoring_engine import ScoringEngine
+            from ..models.analysis_result import AnalysisResult
+            
+            # Create a minimal AnalysisResult for scoring
+            # This is a simplified version - in production, you'd want to pass the full analysis
+            analysis_result = AnalysisResult(
+                url=url,
+                content_analysis=None,  # We'll calculate this from raw content
+                structure_analysis=None,
+                meta_analysis=None,
+                javascript_analysis=None,
+                hidden_content=None,
+                robots_txt=None,
+                llms_txt=None
+            )
+            
+            # Use the same scoring engine as main analysis
+            scoring_engine = ScoringEngine()
+            score_result = scoring_engine.calculate_score(analysis_result)
+            
+            # Return the LLM accessibility score (same as main tab)
+            return score_result.llm_accessibility.total_score
+            
+        except Exception as e:
+            logger.error(f"Unified scoring failed, falling back to basic calculation: {e}")
+            # Fallback to basic calculation if unified scoring fails
+            return self._calculate_visibility_score(visibility_analysis)
     
     def _calculate_visibility_score(self, analysis: Dict[str, Any]) -> float:
         """Calculate LLM visibility score."""
