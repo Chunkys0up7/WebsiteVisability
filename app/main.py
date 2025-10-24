@@ -1485,14 +1485,6 @@ def main():
                 llm_score = st.session_state.score.llm_accessibility.total_score
                 llm_grade = st.session_state.score.llm_accessibility.grade
                 render_score_card("LLM Accessibility", f"{llm_score:.1f}/100", llm_grade, llm_score)
-            elif st.session_state.enhanced_llm_report:
-                llm_score = st.session_state.enhanced_llm_report.overall_score
-                llm_grade = st.session_state.enhanced_llm_report.grade
-                render_score_card("Enhanced LLM Score", f"{llm_score:.1f}/100", llm_grade, llm_score)
-            elif st.session_state.llm_report:
-                llm_score = st.session_state.llm_report.overall_score
-                llm_grade = st.session_state.llm_report.grade
-                render_score_card("LLM Accessibility", f"{llm_score:.1f}/100", llm_grade, llm_score)
             else:
                 render_score_card("LLM Accessibility", None, None, is_na=True,
                                   na_reason=f"N/A ({st.session_state.last_analysis_type})")
@@ -1620,23 +1612,19 @@ def main():
                     
                     st.markdown("---")
                     st.markdown(f"""
-                    **LLM Accessibility Calculation Method (Research-Based 2025):**
+                    **LLM Accessibility Formula (Unified System):**
                     ```
-                    LLM Accessibility Score = 
-                      JavaScript Impact (25%) +
-                      Semantic HTML (25%) +
-                      Structured Data (20%) +
-                      Content Structure (15%) +
-                      Content Accessibility (10%) +
-                      Visibility/Metadata (5%)
+                    LLM Score = Content Quality (30%) + Semantic Structure (25%) + 
+                               Structured Data (20%) + Meta Tags (15%) + 
+                               JS Dependency (5%) + Crawler Access (5%)
+                    ```
                     
-                    Critical LLM Limitations Addressed:
-                    • JavaScript dependency = #1 barrier (25% weight)
-                    • Semantic HTML = AI understanding (25% weight)
-                    • Structured data = proven LLM benefit (Microsoft confirmed)
-                    • Most AI crawlers cannot execute JavaScript
-                    • Only Google Gemini can access JS-rendered content
-                    ```
+                    **Key Research Findings:**
+                    • JavaScript dependency is the #1 barrier to LLM access
+                    • Most AI crawlers (OpenAI, Claude, Perplexity) don't execute JS
+                    • Google's Gemini is exception (uses Web Rendering Service)
+                    • Semantic HTML increasingly critical for AI understanding
+                    • Structured data proven to help LLMs understand content
                     """)
                     
                     if st.session_state.llm_report:
@@ -2284,9 +2272,15 @@ def main():
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("LLM Accessibility Score", f"{llm_report.overall_score:.1f}/100",
-                             delta=f"Grade: {llm_report.grade}",
-                             help="Based on analysis of static HTML content, semantic structure, and JavaScript dependencies")
+                    if st.session_state.score:
+                        unified_score = st.session_state.score.llm_accessibility.total_score
+                        unified_grade = st.session_state.score.llm_accessibility.grade
+                        st.metric("LLM Accessibility Score", f"{unified_score:.1f}/100",
+                                 delta=f"Grade: {unified_grade}",
+                                 help="Unified scoring system - same as main analysis")
+                    else:
+                        st.metric("LLM Accessibility Score", "N/A",
+                                 help="Run comprehensive analysis to get unified LLM score")
                 with col2:
                     st.metric("Accessible Content Categories", f"{len(llm_report.accessible_content)}",
                              help="Types of content LLMs can successfully read without JavaScript execution")
@@ -3148,8 +3142,15 @@ def main():
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Enhanced LLM Score", f"{report.overall_score:.1f}/100", 
-                             delta=f"Grade: {report.grade}")
+                    if st.session_state.score:
+                        unified_score = st.session_state.score.llm_accessibility.total_score
+                        unified_grade = st.session_state.score.llm_accessibility.grade
+                        st.metric("LLM Accessibility Score", f"{unified_score:.1f}/100", 
+                                 delta=f"Grade: {unified_grade}",
+                                 help="Unified scoring system - same as main analysis")
+                    else:
+                        st.metric("LLM Accessibility Score", "N/A",
+                                 help="Run comprehensive analysis to get unified LLM score")
                 with col2:
                     st.metric("Crawler Capabilities", f"{len(report.crawler_analysis)}")
                 with col3:
