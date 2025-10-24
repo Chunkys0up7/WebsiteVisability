@@ -3196,9 +3196,9 @@ def main():
                 with col1:
                     st.metric("Analysis Methods", f"{len(report.crawler_analysis)}")
                 with col2:
-                    st.metric("Evidence Points", f"{len(report.evidence_points)}")
+                    st.metric("Evidence Sources", f"{len(report.evidence_sources)}")
                 with col3:
-                    st.metric("Technical Issues", f"{len(report.technical_explanations)}")
+                    st.metric("Technical Issues", f"{len(report.critical_recommendations)}")
                 
                 st.markdown("---")
                 
