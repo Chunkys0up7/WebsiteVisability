@@ -53,19 +53,6 @@ st.markdown("""
         word-wrap: break-word;
     }
     
-    .visibility-score {
-        font-size: 2rem;
-        font-weight: bold;
-        text-align: center;
-        padding: 20px;
-        border-radius: 8px;
-        margin: 10px 0;
-    }
-    
-    .score-excellent { background-color: #d4edda; color: #155724; }
-    .score-good { background-color: #d1ecf1; color: #0c5460; }
-    .score-fair { background-color: #fff3cd; color: #856404; }
-    .score-poor { background-color: #f8d7da; color: #721c24; }
     
     .search-result {
         background-color: #ffffff;
@@ -302,25 +289,11 @@ def show_visibility_analysis(viewer: LLMContentViewer, url: str):
     with st.spinner("Analyzing LLM visibility..."):
         visibility_analysis = viewer.analyze_llm_visibility(url)
     
-    # Visibility score
-    score = visibility_analysis.visibility_score
-    if score >= 80:
-        score_class = "score-excellent"
-        grade = "Excellent"
-    elif score >= 60:
-        score_class = "score-good"
-        grade = "Good"
-    elif score >= 40:
-        score_class = "score-fair"
-        grade = "Fair"
-    else:
-        score_class = "score-poor"
-        grade = "Poor"
-    
-    st.markdown(f"""
-    <div class="visibility-score {score_class}">
-        LLM Visibility Score: {score:.1f}/100<br>
-        Grade: {grade}
+    # Evidence-based analysis header (no scoring)
+    st.markdown("""
+    <div style="text-align: center; background-color: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="color: #1976d2; margin-bottom: 10px;">🔍 LLM Content Visibility Analysis</h3>
+        <p style="color: #1976d2; font-size: 1.1rem; margin: 0;">Evidence-based analysis of what LLMs can see</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -397,8 +370,7 @@ LLM Visibility Analysis Report
 
 URL: {url}
 Analysis Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Visibility Score: {score:.1f}/100
-Grade: {grade}
+Analysis Type: Evidence-Based Content Visibility
 
 Content Statistics:
 - Total Characters: {visible['total_content']:,}
