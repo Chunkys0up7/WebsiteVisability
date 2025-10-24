@@ -3615,30 +3615,182 @@ def main():
                         help="Select the specific claim you want to prove with evidence"
                     )
                 
-                if st.button("🔬 Run Evidence Analysis", use_container_width=True):
-                    with st.spinner("Collecting evidence using systematic methodology..."):
-                        try:
-                            # Initialize evidence framework
-                            evidence_framework = EvidenceFramework()
-                            
-                            # Convert stake level
-                            stake_enum = StakeLevel(stake_level.lower())
-                            
-                            # Run evidence analysis
-                            evidence_package = evidence_framework.analyze_llm_visibility_claim(
-                                url=st.session_state.analyzed_url,
-                                claim=claim_type,
-                                stake_level=stake_enum
-                            )
-                            
-                            # Store results
-                            st.session_state.evidence_package = evidence_package
-                            
-                            st.success("✅ Evidence analysis completed!")
-                            
-                        except Exception as e:
-                            st.error(f"❌ Evidence analysis failed: {str(e)}")
-                            logger.error(f"Evidence analysis error: {e}")
+                col3, col4 = st.columns(2)
+                
+                with col3:
+                    if st.button("🔬 Run Evidence Analysis", use_container_width=True):
+                        with st.spinner("Collecting evidence using systematic methodology..."):
+                            try:
+                                # Initialize evidence framework
+                                evidence_framework = EvidenceFramework()
+                                
+                                # Convert stake level
+                                stake_enum = StakeLevel(stake_level.lower())
+                                
+                                # Run evidence analysis
+                                evidence_package = evidence_framework.analyze_llm_visibility_claim(
+                                    url=st.session_state.analyzed_url,
+                                    claim=claim_type,
+                                    stake_level=stake_enum
+                                )
+                                
+                                # Store results
+                                st.session_state.evidence_package = evidence_package
+                                
+                                st.success("✅ Evidence analysis completed!")
+                                
+                            except Exception as e:
+                                st.error(f"❌ Evidence analysis failed: {str(e)}")
+                                logger.error(f"Evidence analysis error: {e}")
+                
+                with col4:
+                    if st.button("🔍 Verify LLM URL Access", use_container_width=True):
+                        with st.spinner("Verifying what URL the LLM actually accesses..."):
+                            try:
+                                # Initialize evidence framework
+                                evidence_framework = EvidenceFramework()
+                                
+                                # Run URL verification
+                                url_verification = evidence_framework.verify_llm_url_access(st.session_state.analyzed_url)
+                                
+                                # Store results
+                                st.session_state.url_verification = url_verification
+                                
+                                st.success("✅ URL verification completed!")
+                                
+                            except Exception as e:
+                                st.error(f"❌ URL verification failed: {str(e)}")
+                                logger.error(f"URL verification error: {e}")
+                
+                # Display URL Verification Results
+                if hasattr(st.session_state, 'url_verification') and st.session_state.url_verification:
+                    url_verification = st.session_state.url_verification
+                    
+                    st.markdown('<h3 class="sub-section-header">🔍 URL Verification Results</h3>', unsafe_allow_html=True)
+                    
+                    # URL Access Summary
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Original URL", url_verification.get('original_url', 'N/A'))
+                    with col2:
+                        final_url = url_verification.get('final_url', 'N/A')
+                        st.metric("Final URL", final_url)
+                    with col3:
+                        content_size = url_verification.get('content_size', 0)
+                        st.metric("Content Size", f"{content_size:,} bytes")
+                    
+                    # Redirect Analysis
+                    if url_verification.get('redirect_chain'):
+                        st.markdown('<h4 class="sub-section-header">🔄 Redirect Chain Analysis</h4>', unsafe_allow_html=True)
+                        
+                        redirect_chain = url_verification['redirect_chain']
+                        st.info(f"**Redirects detected:** {len(redirect_chain)}")
+                        
+                        for i, redirect_url in enumerate(redirect_chain, 1):
+                            st.write(f"{i}. {redirect_url}")
+                        
+                        # Check if redirect is user-agent based
+                        if url_verification.get('user_agent_redirect_detected'):
+                            st.warning("⚠️ **User-agent redirect detected!** GPTBot is being redirected to a different URL.")
+                        else:
+                            st.success("✅ **No user-agent redirect detected.** GPTBot accesses the same URL as normal browsers.")
+                    
+                    # Content Accessibility
+                    st.markdown('<h4 class="sub-section-header">📄 Content Accessibility</h4>', unsafe_allow_html=True)
+                    
+                    word_count = url_verification.get('word_count', 0)
+                    content_accessible = url_verification.get('content_accessible', False)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Word Count", f"{word_count:,}")
+                    with col2:
+                        if content_accessible:
+                            st.success("✅ **Content Accessible**")
+                        else:
+                            st.error("❌ **Content Not Accessible**")
+                    
+                    # User Agent Comparison
+                    if url_verification.get('user_agent_results'):
+                        st.markdown('<h4 class="sub-section-header">🤖 User Agent Comparison</h4>', unsafe_allow_html=True)
+                        
+                        user_agent_results = url_verification['user_agent_results']
+                        
+                        # Create comparison table
+                        comparison_data = []
+                        for agent_name, result in user_agent_results.items():
+                            comparison_data.append({
+                                'User Agent': agent_name.title(),
+                                'Final URL': result.get('final_url', 'N/A'),
+                                'Status Code': result.get('status_code', 'N/A'),
+                                'Content Size': f"{result.get('content_size', 0):,} bytes",
+                                'Redirected': '✅ Yes' if result.get('redirected', False) else '❌ No'
+                            })
+                        
+                        st.dataframe(comparison_data, use_container_width=True)
+                        
+                        # Analysis
+                        if url_verification.get('different_content_for_gptbot'):
+                            st.warning("⚠️ **GPTBot receives different content than normal browsers!**")
+                            st.write(f"**Content size difference:** {url_verification.get('content_size_difference', 0):,} bytes")
+                        else:
+                            st.success("✅ **GPTBot receives same content as normal browsers**")
+                    
+                    # Content Comparison
+                    if url_verification.get('normal_word_count') and url_verification.get('gptbot_word_count'):
+                        st.markdown('<h4 class="sub-section-header">📊 Content Comparison</h4>', unsafe_allow_html=True)
+                        
+                        normal_words = url_verification.get('normal_word_count', 0)
+                        gptbot_words = url_verification.get('gptbot_word_count', 0)
+                        content_similarity = url_verification.get('content_similarity', 0)
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Normal Browser", f"{normal_words:,} words")
+                        with col2:
+                            st.metric("GPTBot", f"{gptbot_words:,} words")
+                        with col3:
+                            st.metric("Similarity", f"{content_similarity:.1%}")
+                        
+                        if url_verification.get('significant_difference'):
+                            st.error("🚨 **Significant content difference detected!** GPTBot is missing substantial content.")
+                        elif url_verification.get('content_identical'):
+                            st.success("✅ **Content is identical** between normal browser and GPTBot.")
+                        else:
+                            st.warning("⚠️ **Minor content differences detected.**")
+                    
+                    # Raw Content Preview
+                    if url_verification.get('raw_content_preview'):
+                        st.markdown('<h4 class="sub-section-header">👁️ Raw Content Preview</h4>', unsafe_allow_html=True)
+                        
+                        with st.expander("📄 View Raw Content (First 1000 characters)", expanded=False):
+                            st.code(url_verification['raw_content_preview'], language='html')
+                    
+                    # Recommendations
+                    st.markdown('<h4 class="sub-section-header">🎯 URL Verification Recommendations</h4>', unsafe_allow_html=True)
+                    
+                    recommendations = []
+                    
+                    if url_verification.get('user_agent_redirect_detected'):
+                        recommendations.append("✅ **User-agent redirect is working** - GPTBot is being directed to appropriate content")
+                    else:
+                        recommendations.append("ℹ️ **No user-agent redirect detected** - GPTBot accesses same URL as normal browsers")
+                    
+                    if url_verification.get('content_accessible'):
+                        recommendations.append("✅ **Content is accessible** - GPTBot can read the content")
+                    else:
+                        recommendations.append("❌ **Content not accessible** - GPTBot cannot read sufficient content")
+                    
+                    if url_verification.get('significant_difference'):
+                        recommendations.append("🚨 **Content difference detected** - Investigate why GPTBot sees different content")
+                    
+                    for rec in recommendations:
+                        if rec.startswith("✅"):
+                            st.success(rec)
+                        elif rec.startswith("❌") or rec.startswith("🚨"):
+                            st.error(rec)
+                        else:
+                            st.info(rec)
                 
                 # Display Evidence Results
                 if hasattr(st.session_state, 'evidence_package') and st.session_state.evidence_package:

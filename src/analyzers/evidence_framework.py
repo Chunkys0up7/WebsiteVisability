@@ -1059,6 +1059,229 @@ class EvidenceFramework:
         
         return recommendations
     
+    def verify_llm_url_access(self, url: str) -> Dict[str, Any]:
+        """
+        Verify what URL the LLM actually accesses and what content it receives.
+        This addresses user-agent redirects and ensures we're testing the right URL.
+        """
+        logger.info(f"Verifying LLM URL access for: {url}")
+        
+        verification_results = {
+            'original_url': url,
+            'final_url': None,
+            'redirect_chain': [],
+            'http_status': None,
+            'content_size': 0,
+            'content_accessible': False,
+            'user_agent_redirect_detected': False,
+            'verification_methods': []
+        }
+        
+        # Method 1: curl with GPTBot user agent to trace redirects
+        curl_result = self._verify_with_curl_gptbot(url)
+        if curl_result:
+            verification_results.update(curl_result)
+            verification_results['verification_methods'].append('curl_gptbot')
+        
+        # Method 2: Check for user-agent redirects
+        redirect_result = self._check_user_agent_redirects(url)
+        if redirect_result:
+            verification_results.update(redirect_result)
+            verification_results['verification_methods'].append('redirect_check')
+        
+        # Method 3: Compare normal vs GPTBot access
+        comparison_result = self._compare_normal_vs_gptbot(url)
+        if comparison_result:
+            verification_results.update(comparison_result)
+            verification_results['verification_methods'].append('access_comparison')
+        
+        return verification_results
+    
+    def _verify_with_curl_gptbot(self, url: str) -> Optional[Dict[str, Any]]:
+        """Verify URL access using curl with GPTBot user agent"""
+        try:
+            # Trace redirects with verbose output
+            cmd = [
+                'curl',
+                '-A', 'Mozilla/5.0 (compatible; GPTBot/1.0; +https://openai.com/gptbot)',
+                '-L',  # Follow redirects
+                '-v',  # Verbose to see redirect chain
+                '-s',  # Silent except for verbose
+                url
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode != 0:
+                logger.error(f"curl command failed: {result.stderr}")
+                return None
+            
+            # Parse verbose output to extract redirect chain
+            stderr_lines = result.stderr.split('\n')
+            redirect_chain = []
+            final_url = url
+            http_status = None
+            
+            for line in stderr_lines:
+                if 'Location:' in line:
+                    redirect_url = line.split('Location:')[1].strip()
+                    redirect_chain.append(redirect_url)
+                    final_url = redirect_url
+                elif line.startswith('< HTTP/'):
+                    http_status = line.split()[1]
+            
+            # Analyze content
+            content_size = len(result.stdout)
+            soup = BeautifulSoup(result.stdout, 'html.parser')
+            text_content = soup.get_text()
+            word_count = len(text_content.split())
+            
+            # Check for user-agent redirect indicators
+            user_agent_redirect_detected = any([
+                'user-agent' in result.stdout.lower(),
+                'redirect' in result.stdout.lower(),
+                'static' in final_url.lower(),
+                len(redirect_chain) > 0
+            ])
+            
+            return {
+                'final_url': final_url,
+                'redirect_chain': redirect_chain,
+                'http_status': http_status,
+                'content_size': content_size,
+                'word_count': word_count,
+                'content_accessible': word_count > 100,
+                'user_agent_redirect_detected': user_agent_redirect_detected,
+                'raw_content_preview': result.stdout[:1000] if result.stdout else ""
+            }
+            
+        except Exception as e:
+            logger.error(f"curl GPTBot verification failed: {e}")
+            return None
+    
+    def _check_user_agent_redirects(self, url: str) -> Optional[Dict[str, Any]]:
+        """Check for user-agent based redirects"""
+        try:
+            # Test with different user agents
+            user_agents = {
+                'normal': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'gptbot': 'Mozilla/5.0 (compatible; GPTBot/1.0; +https://openai.com/gptbot)',
+                'claudebot': 'Mozilla/5.0 (compatible; ClaudeBot/1.0; +https://claude.ai)',
+                'perplexitybot': 'Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai)'
+            }
+            
+            results = {}
+            redirect_detected = False
+            
+            for agent_name, user_agent in user_agents.items():
+                try:
+                    cmd = [
+                        'curl',
+                        '-A', user_agent,
+                        '-L',
+                        '-s',
+                        '-w', '%{url_effective}|%{http_code}|%{size_download}',
+                        url
+                    ]
+                    
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                    
+                    if result.returncode == 0:
+                        # Parse output: final_url|status_code|content_size
+                        parts = result.stdout.strip().split('|')
+                        if len(parts) >= 3:
+                            final_url, status_code, content_size = parts[0], parts[1], int(parts[2])
+                            
+                            results[agent_name] = {
+                                'final_url': final_url,
+                                'status_code': status_code,
+                                'content_size': content_size,
+                                'redirected': final_url != url
+                            }
+                            
+                            if final_url != url:
+                                redirect_detected = True
+                    
+                except Exception as e:
+                    logger.error(f"User agent test failed for {agent_name}: {e}")
+                    continue
+            
+            # Analyze differences
+            if len(results) >= 2:
+                # Check if GPTBot gets different content
+                gptbot_result = results.get('gptbot', {})
+                normal_result = results.get('normal', {})
+                
+                different_content = (
+                    gptbot_result.get('final_url') != normal_result.get('final_url') or
+                    abs(gptbot_result.get('content_size', 0) - normal_result.get('content_size', 0)) > 1000
+                )
+                
+                return {
+                    'user_agent_results': results,
+                    'redirect_detected': redirect_detected,
+                    'different_content_for_gptbot': different_content,
+                    'gptbot_final_url': gptbot_result.get('final_url'),
+                    'normal_final_url': normal_result.get('final_url'),
+                    'content_size_difference': abs(gptbot_result.get('content_size', 0) - normal_result.get('content_size', 0))
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"User agent redirect check failed: {e}")
+            return None
+    
+    def _compare_normal_vs_gptbot(self, url: str) -> Optional[Dict[str, Any]]:
+        """Compare normal browser access vs GPTBot access"""
+        try:
+            # Normal access
+            normal_cmd = ['curl', '-s', '-L', url]
+            normal_result = subprocess.run(normal_cmd, capture_output=True, text=True, timeout=15)
+            
+            # GPTBot access
+            gptbot_cmd = ['curl', '-A', 'Mozilla/5.0 (compatible; GPTBot/1.0; +https://openai.com/gptbot)', '-s', '-L', url]
+            gptbot_result = subprocess.run(gptbot_cmd, capture_output=True, text=True, timeout=15)
+            
+            if normal_result.returncode != 0 or gptbot_result.returncode != 0:
+                return None
+            
+            # Compare content
+            normal_content = normal_result.stdout
+            gptbot_content = gptbot_result.stdout
+            
+            normal_size = len(normal_content)
+            gptbot_size = len(gptbot_content)
+            
+            # Parse content for meaningful comparison
+            normal_soup = BeautifulSoup(normal_content, 'html.parser')
+            gptbot_soup = BeautifulSoup(gptbot_content, 'html.parser')
+            
+            normal_text = normal_soup.get_text()
+            gptbot_text = gptbot_soup.get_text()
+            
+            normal_words = len(normal_text.split())
+            gptbot_words = len(gptbot_text.split())
+            
+            # Calculate similarity
+            content_similarity = min(normal_words, gptbot_words) / max(normal_words, gptbot_words) if max(normal_words, gptbot_words) > 0 else 0
+            
+            return {
+                'normal_content_size': normal_size,
+                'gptbot_content_size': gptbot_size,
+                'normal_word_count': normal_words,
+                'gptbot_word_count': gptbot_words,
+                'content_similarity': content_similarity,
+                'size_difference': abs(normal_size - gptbot_size),
+                'word_difference': abs(normal_words - gptbot_words),
+                'content_identical': normal_content == gptbot_content,
+                'significant_difference': abs(normal_words - gptbot_words) > 100 or abs(normal_size - gptbot_size) > 5000
+            }
+            
+        except Exception as e:
+            logger.error(f"Normal vs GPTBot comparison failed: {e}")
+            return None
+    
     def generate_evidence_report(self, evidence_package: EvidencePackage) -> Dict[str, Any]:
         """Generate comprehensive evidence report"""
         return {
