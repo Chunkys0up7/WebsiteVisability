@@ -5,11 +5,16 @@ Dedicated page for showing exactly what LLMs can see when accessing websites.
 This simulates the behavior of LLM web_fetch and web_search tools.
 """
 
+import os
+import sys
 import streamlit as st
 import logging
 from datetime import datetime
 import time
 from typing import Optional, List, Dict, Any
+
+# Add project root to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.analyzers.llm_content_viewer import LLMContentViewer, LLMContentResult, LLMSearchResult, LLMVisibilityAnalysis
 from src.utils.validators import URLValidator
