@@ -3917,8 +3917,8 @@ def main():
                                     
                                     # Show key data
                                     if point.data:
-                                        with st.expander("📊 Evidence Data", expanded=False):
-                                            st.json(point.data)
+                                        st.markdown("**📊 Evidence Data:**")
+                                        st.json(point.data)
                                     st.markdown("---")
                     
                     # Business Impact Analysis
