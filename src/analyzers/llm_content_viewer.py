@@ -290,9 +290,10 @@ class LLMContentViewer:
         
         return search_results[:num_results]
     
-    def analyze_llm_visibility(self, url: str) -> LLMVisibilityAnalysis:
+    def analyze_llm_visibility(self, url: str, analysis_result: Optional[AnalysisResult] = None) -> LLMVisibilityAnalysis:
         """
         Analyze what LLMs can see vs what's hidden from them with comprehensive evidence.
+        Now uses unified scoring system for consistency.
         """
         logger.info(f"Analyzing LLM visibility for {url}")
         
@@ -310,7 +311,12 @@ class LLMContentViewer:
         recommendations = self._generate_visibility_recommendations(visibility_analysis)
         
         # Calculate visibility score using unified scoring system
-        visibility_score = self._calculate_unified_visibility_score(visibility_analysis, url)
+        if analysis_result:
+            # Use the same scoring engine as main analysis for consistency
+            visibility_score = self._calculate_unified_visibility_score(analysis_result)
+        else:
+            # Fallback to basic calculation if no analysis result provided
+            visibility_score = self._calculate_visibility_score(visibility_analysis)
         
         return LLMVisibilityAnalysis(
             llm_visible_content=content_result.raw_content,
@@ -863,7 +869,7 @@ class LLMContentViewer:
         
         return recommendations
     
-    def _calculate_unified_visibility_score(self, visibility_analysis: Dict[str, Any], url: str) -> float:
+    def _calculate_unified_visibility_score(self, analysis_result: AnalysisResult) -> float:
         """
         Calculate visibility score using the same unified scoring system as main analysis.
         This ensures consistency between LLM Visibility Analysis and main tab scores.
@@ -871,20 +877,6 @@ class LLMContentViewer:
         try:
             # Import the scoring engine
             from .scoring_engine import ScoringEngine
-            from ..models.analysis_result import AnalysisResult
-            
-            # Create a minimal AnalysisResult for scoring
-            # This is a simplified version - in production, you'd want to pass the full analysis
-            analysis_result = AnalysisResult(
-                url=url,
-                content_analysis=None,  # We'll calculate this from raw content
-                structure_analysis=None,
-                meta_analysis=None,
-                javascript_analysis=None,
-                hidden_content=None,
-                robots_txt=None,
-                llms_txt=None
-            )
             
             # Use the same scoring engine as main analysis
             scoring_engine = ScoringEngine()
@@ -894,9 +886,19 @@ class LLMContentViewer:
             return score_result.llm_accessibility.total_score
             
         except Exception as e:
-            logger.error(f"Unified scoring failed, falling back to basic calculation: {e}")
-            # Fallback to basic calculation if unified scoring fails
-            return self._calculate_visibility_score(visibility_analysis)
+            logger.error(f"Unified scoring failed: {e}")
+            # Fallback to a basic score based on content analysis
+            if analysis_result.content_analysis:
+                word_count = analysis_result.content_analysis.word_count
+                if word_count >= 500:
+                    return 80.0
+                elif word_count >= 200:
+                    return 60.0
+                elif word_count >= 50:
+                    return 40.0
+                else:
+                    return 20.0
+            return 50.0  # Default fallback score
     
     def _calculate_visibility_score(self, analysis: Dict[str, Any]) -> float:
         """Calculate LLM visibility score."""

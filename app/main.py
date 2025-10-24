@@ -1414,73 +1414,33 @@ def main():
     if st.session_state.analysis_complete:
         st.markdown('<h2 class="section-header">✅ Analysis Complete</h2>', unsafe_allow_html=True)
         
-        # Add detailed scoring explanation
-        with st.expander("🧮 **Detailed Scoring Methodology**", expanded=False):
+        # Add unified scoring explanation
+        with st.expander("🧮 **Unified Scoring Methodology**", expanded=False):
             st.markdown("""
-            ### **Scraper Friendliness Score (50.5/100)**
+            ### **Unified Scoring System**
             
-            **Research-Based Formula (Updated 2025):**
-            ```
-            Scraper Score = Static Content (20%) + Semantic HTML (20%) + 
-                           Structured Data (20%) + Meta Tags (10%) + 
-                           JavaScript Dependency (25%) + Crawler Access (5%)
-            ```
+            **All LLM-related scores now use the same methodology for consistency:**
             
-            **Component Breakdown:**
-            - **Static Content Quality**: 25.0/20 points (125%) - *Capped at 20*
-              - Word count: 8 points (2622 words = substantial content)
-              - Paragraph structure: 4 points (44 paragraphs = well-structured)
-              - Links: 4 points (good navigation)
-              - Media: 2 points (images/tables)
-              - Token efficiency: 1.5 points
-            
-            - **Semantic HTML Structure**: 18.0/20 points (90%)
-              - 4 semantic elements detected
-              - Single H1 heading (best practice)
-              - DOM depth within acceptable limits
-            
-            - **Structured Data**: 0.0/20 points (0%)
-              - No JSON-LD structured data
-              - No Microdata markup
-            
-            - **Meta Tags**: 5.0/10 points (50%)
-              - No title tag (-15 points)
-              - No Open Graph tags (-10 points)
-              - Optimal description length (+5 points)
-              - Canonical URL specified (+5 points)
-            
-            - **JavaScript Dependency**: 0.0/25 points (0%) - *CRITICAL ISSUE*
-              - Dynamic content without SSR (-25 points)
-              - Heavy JavaScript usage (48 scripts) (-20 points)
-              - SPA detection (-15 points)
-            
-            - **Crawler Accessibility**: 2.5/5 points (50%)
-              - Assumed permissive crawler directives
-            
-            ### **LLM Accessibility Score (77.5/100)**
-            
-            **LLM-Specific Formula:**
+            **LLM Accessibility Formula (100 points total):**
             ```
             LLM Score = Content Quality (30%) + Semantic Structure (25%) + 
                        Structured Data (20%) + Meta Tags (15%) + 
                        JS Dependency (5%) + Crawler Access (5%)
             ```
             
-            **Key Difference**: LLM scoring treats JavaScript as less critical (5/5 points) 
-            because some LLMs can use dynamic rendering services.
+            **Scraper Friendliness Formula (100 points total):**
+            ```
+            Scraper Score = Static Content (20%) + Semantic HTML (20%) + 
+                           Structured Data (20%) + Meta Tags (10%) + 
+                           JavaScript Dependency (25%) + Crawler Access (5%)
+            ```
             
-            **Component Breakdown:**
-            - **Content Quality**: 37.5/30 points (125%) - *Capped at 30*
-            - **Semantic Structure**: 22.5/25 points (90%)
-            - **Structured Data**: 0.0/20 points (0%)
-            - **Meta Tags**: 7.5/15 points (50%)
-            - **JS Dependency**: 5.0/5 points (100%) - *Neutral for LLMs*
-            - **Crawler Access**: 5.0/5 points (100%)
+            **Key Differences:**
+            - **LLM Score**: Treats JavaScript neutrally (5% weight) - some LLMs use rendering services
+            - **Scraper Score**: Heavily penalizes JavaScript (25% weight) - most crawlers don't execute JS
             
-            **Why Different Scores?**
-            - **Scraper Score**: Penalizes JavaScript heavily (25% weight)
-            - **LLM Score**: Treats JavaScript neutrally (5% weight)
-            - **Research**: Most AI crawlers don't execute JS, but some LLMs use rendering services
+            **Research Basis**: Based on 2025 studies showing most AI crawlers don't execute JavaScript,
+            but some LLM services are evolving to use dynamic rendering capabilities.
             """)
         
         # Action buttons
@@ -2433,33 +2393,30 @@ def main():
         with tabs[4]:  # LLM Visibility
             st.markdown('<h2 class="section-header">👁️ LLM Content Visibility</h2>', unsafe_allow_html=True)
             
-            # Add scoring explanation
-            with st.expander("📊 **Scoring System Explanation**", expanded=True):
+            # Add unified scoring explanation
+            with st.expander("📊 **Unified Scoring System**", expanded=True):
                 st.markdown("""
-                **Why Two Different LLM Scores?**
+                **Consistent Scoring Across All Tabs**
                 
-                This tool provides **two complementary scoring perspectives**:
+                This tool now uses a **unified scoring system** for all LLM-related scores:
                 
-                **1. Main Tab LLM Accessibility (77.5/100)**
-                - **Purpose**: Overall website accessibility to AI systems
-                - **Method**: Additive scoring (starts at 0, adds points for good features)
-                - **JavaScript Treatment**: Assumes LLMs can handle JavaScript (5/5 points)
-                - **Use Case**: General website optimization for AI crawlers
+                **LLM Accessibility Formula (100 points total):**
+                ```
+                LLM Score = Content Quality (30%) + Semantic Structure (25%) + 
+                           Structured Data (20%) + Meta Tags (15%) + 
+                           JS Dependency (5%) + Crawler Access (5%)
+                ```
                 
-                **2. LLM Visibility Analysis (45.0/100)**
-                - **Purpose**: What LLMs actually see vs. what's hidden
-                - **Method**: Subtractive scoring (starts at 100, deducts for problems)
-                - **JavaScript Treatment**: Heavily penalizes JavaScript dependencies (30-75 point deduction)
-                - **Use Case**: Identifying specific visibility barriers
+                **Key Features:**
+                - **Consistent Methodology**: Same scoring engine used across all tabs
+                - **Research-Based Weights**: Based on 2025 research on LLM content access
+                - **Transparent Calculation**: Component-by-component breakdown available
+                - **No Confusion**: Single source of truth for LLM accessibility
                 
-                **Which Score Should You Trust?**
-                
-                - **For Executive Reports**: Use Main Tab score (more balanced)
-                - **For Technical Analysis**: Use LLM Visibility score (more realistic about JS limitations)
-                - **For Complete Picture**: Use both scores together
-                
-                **Key Research Finding**: Most AI crawlers (ChatGPT, Claude, Perplexity) do NOT execute JavaScript.
-                The LLM Visibility score reflects this reality more accurately.
+                **JavaScript Treatment**: 
+                - Treated as neutral (5/5 points) because some LLMs use dynamic rendering services
+                - However, most AI crawlers (ChatGPT, Claude, Perplexity) still don't execute JavaScript
+                - This reflects the current state of LLM technology evolution
                 """)
             
             st.markdown("""
@@ -2476,7 +2433,11 @@ def main():
                     try:
                         with LLMContentViewer() as viewer:
                             try:
-                                visibility_analysis = viewer.analyze_llm_visibility(st.session_state.url)
+                                # Pass the analysis result for unified scoring
+                                visibility_analysis = viewer.analyze_llm_visibility(
+                                    st.session_state.url, 
+                                    st.session_state.static_result
+                                )
                             except Exception as e:
                                 st.error(f"Error in LLM visibility analysis: {str(e)}")
                                 # Fallback to basic analysis
