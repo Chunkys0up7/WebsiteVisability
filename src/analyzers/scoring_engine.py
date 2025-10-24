@@ -221,58 +221,58 @@ class ScoringEngine:
         
         content = result.content_analysis
         
-        # Word count (10 points)
+        # Word count (8 points) - Adjusted to fit 20 point total
         if content.word_count >= 500:
-            score += 10.0
+            score += 8.0
             strengths.append(f"Substantial content ({content.word_count} words)")
         elif content.word_count >= 200:
-            score += 7.0
+            score += 6.0
             strengths.append(f"Moderate content ({content.word_count} words)")
         elif content.word_count >= 50:
-            score += 4.0
+            score += 3.0
             issues.append(f"Limited content ({content.word_count} words)")
         else:
             issues.append(f"Very little content ({content.word_count} words)")
         
-        # Paragraph structure (5 points)
+        # Paragraph structure (4 points) - Adjusted to fit 20 point total
         if content.paragraphs >= 5:
-            score += 5.0
+            score += 4.0
             strengths.append(f"Well-structured with {content.paragraphs} paragraphs")
         elif content.paragraphs >= 2:
-            score += 3.0
+            score += 2.5
         elif content.paragraphs >= 1:
             score += 1.0
         else:
             issues.append("No paragraphs detected")
         
-        # Links (5 points)
+        # Links (4 points) - Adjusted to fit 20 point total
         if content.links >= 10:
-            score += 5.0
+            score += 4.0
             strengths.append(f"Good navigation with {content.links} links")
         elif content.links >= 5:
-            score += 3.0
+            score += 2.5
         elif content.links >= 1:
             score += 1.0
         else:
             issues.append("No links found")
         
-        # Media (3 points)
+        # Media (2 points) - Adjusted to fit 20 point total
         if content.images >= 3:
-            score += 2.0
+            score += 1.5
         elif content.images >= 1:
-            score += 1.0
+            score += 0.5
         
         if content.tables >= 1 or content.lists >= 1:
-            score += 1.0
+            score += 0.5
         
-        # Token efficiency (2 points)
+        # Token efficiency (2 points) - Adjusted to fit 20 point total
         if content.estimated_tokens > 0:
             token_word_ratio = content.estimated_tokens / max(content.word_count, 1)
             if token_word_ratio <= 1.5:  # Efficient tokenization
-                score += 2.0
+                score += 1.5
                 strengths.append("Efficient token usage")
             elif token_word_ratio <= 2.0:
-                score += 1.0
+                score += 0.5
         
         # Ensure score doesn't exceed max_score
         score = min(score, max_score)
@@ -678,9 +678,9 @@ class ScoringEngine:
         # LLM score weights differ - emphasize content structure and semantics
         llm_static = ScoreComponent(
             name=static_content.name,
-            score=(static_content.score / static_content.max_score) * 30,  # 30 points
+            score=min((static_content.score / static_content.max_score) * 30, 30.0),  # Cap at 30 points
             max_score=30.0,
-            percentage=(static_content.score / static_content.max_score) * 100,
+            percentage=min((static_content.score / static_content.max_score) * 100, 100.0),
             description=static_content.description,
             issues=static_content.issues,
             strengths=static_content.strengths
@@ -688,9 +688,9 @@ class ScoringEngine:
         
         llm_semantic = ScoreComponent(
             name=semantic_html.name,
-            score=(semantic_html.score / semantic_html.max_score) * 25,  # 25 points
+            score=min((semantic_html.score / semantic_html.max_score) * 25, 25.0),  # Cap at 25 points
             max_score=25.0,
-            percentage=(semantic_html.score / semantic_html.max_score) * 100,
+            percentage=min((semantic_html.score / semantic_html.max_score) * 100, 100.0),
             description=semantic_html.description,
             issues=semantic_html.issues,
             strengths=semantic_html.strengths
@@ -698,9 +698,9 @@ class ScoringEngine:
         
         llm_structured = ScoreComponent(
             name=structured_data.name,
-            score=(structured_data.score / structured_data.max_score) * 20,  # 20 points
+            score=min((structured_data.score / structured_data.max_score) * 20, 20.0),  # Cap at 20 points
             max_score=20.0,
-            percentage=(structured_data.score / structured_data.max_score) * 100,
+            percentage=min((structured_data.score / structured_data.max_score) * 100, 100.0),
             description=structured_data.description,
             issues=structured_data.issues,
             strengths=structured_data.strengths
@@ -708,9 +708,9 @@ class ScoringEngine:
         
         llm_meta = ScoreComponent(
             name=meta_tags.name,
-            score=(meta_tags.score / meta_tags.max_score) * 15,  # 15 points
+            score=min((meta_tags.score / meta_tags.max_score) * 15, 15.0),  # Cap at 15 points
             max_score=15.0,
-            percentage=(meta_tags.score / meta_tags.max_score) * 100,
+            percentage=min((meta_tags.score / meta_tags.max_score) * 100, 100.0),
             description=meta_tags.description,
             issues=meta_tags.issues,
             strengths=meta_tags.strengths
