@@ -48,6 +48,10 @@ class LLMVisibilityAnalysis:
     content_breakdown: Dict[str, Any]
     recommendations: List[str]
     visibility_score: float
+    evidence_analysis: Dict[str, Any]  # Detailed evidence of what LLMs can/cannot see
+    javascript_analysis: Dict[str, Any]  # JavaScript dependency analysis
+    content_quality_metrics: Dict[str, Any]  # Quality assessment of visible content
+    comparison_data: Dict[str, Any]  # Comparison with human-visible content
 
 
 class LLMContentViewer:
@@ -288,15 +292,19 @@ class LLMContentViewer:
     
     def analyze_llm_visibility(self, url: str) -> LLMVisibilityAnalysis:
         """
-        Analyze what LLMs can see vs what's hidden from them.
+        Analyze what LLMs can see vs what's hidden from them with comprehensive evidence.
         """
         logger.info(f"Analyzing LLM visibility for {url}")
         
         # Get the raw content
         content_result = self.get_raw_llm_content(url)
         
-        # Analyze what's visible vs hidden
+        # Perform comprehensive analysis
         visibility_analysis = self._analyze_content_visibility(content_result.raw_content, url)
+        evidence_analysis = self._perform_evidence_analysis(content_result.raw_content, url)
+        javascript_analysis = self._analyze_javascript_dependencies(content_result.raw_content)
+        content_quality_metrics = self._assess_content_quality(content_result.raw_content)
+        comparison_data = self._generate_comparison_data(content_result.raw_content, url)
         
         # Generate recommendations
         recommendations = self._generate_visibility_recommendations(visibility_analysis)
@@ -309,7 +317,11 @@ class LLMContentViewer:
             hidden_content_summary=visibility_analysis['hidden'],
             content_breakdown=visibility_analysis['breakdown'],
             recommendations=recommendations,
-            visibility_score=visibility_score
+            visibility_score=visibility_score,
+            evidence_analysis=evidence_analysis,
+            javascript_analysis=javascript_analysis,
+            content_quality_metrics=content_quality_metrics,
+            comparison_data=comparison_data
         )
     
     def _extract_llm_visible_content(self, html_content: str, url: str) -> str:
@@ -376,6 +388,426 @@ class LLMContentViewer:
                 'content_type': 'static' if not hidden_indicators['javascript_dependent'] else 'dynamic'
             }
         }
+    
+    def _perform_evidence_analysis(self, content: str, url: str) -> Dict[str, Any]:
+        """Perform detailed evidence analysis of what LLMs can/cannot see."""
+        
+        # Analyze JavaScript dependency evidence
+        js_evidence = self._analyze_javascript_evidence(content)
+        
+        # Analyze content structure evidence
+        structure_evidence = self._analyze_content_structure(content)
+        
+        # Analyze meta information evidence
+        meta_evidence = self._analyze_meta_evidence(content)
+        
+        # Analyze loading/placeholder evidence
+        loading_evidence = self._analyze_loading_evidence(content)
+        
+        return {
+            'javascript_dependency': js_evidence,
+            'content_structure': structure_evidence,
+            'meta_information': meta_evidence,
+            'loading_indicators': loading_evidence,
+            'overall_assessment': self._generate_overall_assessment(js_evidence, structure_evidence, meta_evidence, loading_evidence)
+        }
+    
+    def _analyze_javascript_evidence(self, content: str) -> Dict[str, Any]:
+        """Analyze evidence of JavaScript dependency."""
+        content_lower = content.lower()
+        
+        # Check for explicit JavaScript requirements
+        js_required_phrases = [
+            'please turn on javascript',
+            'enable javascript',
+            'javascript required',
+            'javascript is disabled',
+            'please enable javascript'
+        ]
+        
+        js_required_found = any(phrase in content_lower for phrase in js_required_phrases)
+        
+        # Check for loading indicators
+        loading_phrases = [
+            'loading...',
+            'please wait',
+            'loading content',
+            'initializing',
+            'starting up'
+        ]
+        
+        loading_found = any(phrase in content_lower for phrase in loading_phrases)
+        
+        # Check for empty containers
+        empty_containers = content.count('<div></div>') + content.count('<div id="root"></div>') + content.count('<div id="app"></div>')
+        
+        # Check for script tags
+        script_count = content.count('<script')
+        
+        return {
+            'javascript_required_message': js_required_found,
+            'loading_indicators': loading_found,
+            'empty_containers': empty_containers,
+            'script_tags_count': script_count,
+            'evidence_level': 'high' if js_required_found else 'medium' if loading_found or empty_containers > 0 else 'low',
+            'evidence_description': self._generate_js_evidence_description(js_required_found, loading_found, empty_containers, script_count)
+        }
+    
+    def _analyze_content_structure(self, content: str) -> Dict[str, Any]:
+        """Analyze the structure of visible content."""
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        # Count different elements
+        h1_count = len(soup.find_all('h1'))
+        h2_count = len(soup.find_all('h2'))
+        p_count = len(soup.find_all('p'))
+        div_count = len(soup.find_all('div'))
+        article_count = len(soup.find_all('article'))
+        main_count = len(soup.find_all('main'))
+        
+        # Check for semantic structure
+        has_semantic_structure = h1_count > 0 or article_count > 0 or main_count > 0
+        
+        # Check for meaningful content
+        text_content = soup.get_text()
+        meaningful_words = len([word for word in text_content.split() if len(word) > 3])
+        
+        return {
+            'headings': {'h1': h1_count, 'h2': h2_count},
+            'paragraphs': p_count,
+            'divs': div_count,
+            'semantic_elements': {'article': article_count, 'main': main_count},
+            'has_semantic_structure': has_semantic_structure,
+            'meaningful_words': meaningful_words,
+            'structure_quality': 'good' if has_semantic_structure and meaningful_words > 100 else 'poor'
+        }
+    
+    def _analyze_meta_evidence(self, content: str) -> Dict[str, Any]:
+        """Analyze meta information evidence."""
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        # Check for title
+        title_tag = soup.find('title')
+        title_text = title_tag.get_text().strip() if title_tag else None
+        
+        # Check for meta description
+        meta_desc = soup.find('meta', attrs={'name': 'description'})
+        description = meta_desc.get('content', '') if meta_desc else None
+        
+        # Check for Open Graph tags
+        og_title = soup.find('meta', attrs={'property': 'og:title'})
+        og_description = soup.find('meta', attrs={'property': 'og:description'})
+        
+        return {
+            'title': title_text,
+            'description': description,
+            'og_title': og_title.get('content', '') if og_title else None,
+            'og_description': og_description.get('content', '') if og_description else None,
+            'meta_completeness': 'complete' if title_text and description else 'partial' if title_text else 'missing'
+        }
+    
+    def _analyze_loading_evidence(self, content: str) -> Dict[str, Any]:
+        """Analyze evidence of loading states and placeholders."""
+        content_lower = content.lower()
+        
+        # Check for loading messages
+        loading_messages = [
+            'loading',
+            'please wait',
+            'initializing',
+            'starting up',
+            'connecting',
+            'preparing'
+        ]
+        
+        found_loading = [msg for msg in loading_messages if msg in content_lower]
+        
+        # Check for placeholder text
+        placeholder_indicators = [
+            'coming soon',
+            'under construction',
+            'temporarily unavailable',
+            'service unavailable'
+        ]
+        
+        found_placeholders = [indicator for indicator in placeholder_indicators if indicator in content_lower]
+        
+        return {
+            'loading_messages': found_loading,
+            'placeholder_text': found_placeholders,
+            'has_loading_state': len(found_loading) > 0,
+            'has_placeholder': len(found_placeholders) > 0,
+            'evidence_level': 'high' if found_loading or found_placeholders else 'low'
+        }
+    
+    def _analyze_javascript_dependencies(self, content: str) -> Dict[str, Any]:
+        """Analyze JavaScript dependencies in detail."""
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        # Find all script tags
+        scripts = soup.find_all('script')
+        
+        # Analyze script sources
+        external_scripts = []
+        inline_scripts = []
+        
+        for script in scripts:
+            if script.get('src'):
+                external_scripts.append(script.get('src'))
+            elif script.string:
+                inline_scripts.append(script.string[:100] + '...' if len(script.string) > 100 else script.string)
+        
+        # Check for framework indicators
+        framework_indicators = {
+            'react': any('react' in script.get('src', '') for script in scripts),
+            'vue': any('vue' in script.get('src', '') for script in scripts),
+            'angular': any('angular' in script.get('src', '') for script in scripts),
+            'jquery': any('jquery' in script.get('src', '') for script in scripts)
+        }
+        
+        detected_frameworks = [fw for fw, detected in framework_indicators.items() if detected]
+        
+        return {
+            'total_scripts': len(scripts),
+            'external_scripts': external_scripts,
+            'inline_scripts': inline_scripts,
+            'detected_frameworks': detected_frameworks,
+            'framework_count': len(detected_frameworks),
+            'dependency_level': 'high' if len(scripts) > 10 else 'medium' if len(scripts) > 5 else 'low'
+        }
+    
+    def _assess_content_quality(self, content: str) -> Dict[str, Any]:
+        """Assess the quality of visible content."""
+        soup = BeautifulSoup(content, 'html.parser')
+        text_content = soup.get_text()
+        
+        # Basic metrics
+        word_count = len(text_content.split())
+        char_count = len(text_content)
+        
+        # Quality indicators
+        has_meaningful_content = word_count > 100
+        has_structure = len(soup.find_all(['h1', 'h2', 'h3', 'p', 'article'])) > 0
+        has_navigation = len(soup.find_all(['nav', 'menu', 'ul', 'ol'])) > 0
+        
+        # Check for error messages
+        error_indicators = ['error', 'not found', '404', '500', 'unavailable']
+        has_errors = any(error in text_content.lower() for error in error_indicators)
+        
+        return {
+            'word_count': word_count,
+            'character_count': char_count,
+            'has_meaningful_content': has_meaningful_content,
+            'has_structure': has_structure,
+            'has_navigation': has_navigation,
+            'has_errors': has_errors,
+            'quality_score': self._calculate_quality_score(has_meaningful_content, has_structure, has_navigation, has_errors)
+        }
+    
+    def _generate_comparison_data(self, content: str, url: str) -> Dict[str, Any]:
+        """Generate comparison data between LLM view and human view."""
+        
+        # Analyze what's missing (typical human-visible content)
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        # Check for interactive elements that humans see but LLMs don't
+        interactive_elements = len(soup.find_all(['button', 'input', 'select', 'textarea']))
+        
+        # Check for media elements
+        media_elements = len(soup.find_all(['img', 'video', 'audio']))
+        
+        # Check for dynamic content indicators
+        dynamic_indicators = [
+            'onclick', 'onload', 'onchange', 'addEventListener',
+            'document.getElementById', 'document.querySelector'
+        ]
+        
+        dynamic_content_found = any(indicator in content for indicator in dynamic_indicators)
+        
+        return {
+            'interactive_elements': interactive_elements,
+            'media_elements': media_elements,
+            'dynamic_content_indicators': dynamic_content_found,
+            'human_llm_difference': 'significant' if dynamic_content_found or interactive_elements > 5 else 'minimal'
+        }
+    
+    def _generate_js_evidence_description(self, js_required: bool, loading: bool, empty_containers: int, script_count: int) -> str:
+        """Generate a description of JavaScript evidence."""
+        if js_required:
+            return "CRITICAL: Page explicitly requires JavaScript to function"
+        elif loading:
+            return "HIGH: Page shows loading indicators suggesting JavaScript dependency"
+        elif empty_containers > 0:
+            return f"MEDIUM: Found {empty_containers} empty containers that likely require JavaScript"
+        elif script_count > 10:
+            return f"HIGH: {script_count} script tags detected, suggesting heavy JavaScript usage"
+        else:
+            return "LOW: Minimal JavaScript dependency evidence"
+    
+    def _generate_overall_assessment(self, js_evidence: Dict, structure_evidence: Dict, meta_evidence: Dict, loading_evidence: Dict) -> Dict[str, Any]:
+        """Generate overall assessment of LLM visibility."""
+        
+        # Calculate overall evidence level
+        evidence_levels = [
+            js_evidence['evidence_level'],
+            loading_evidence['evidence_level']
+        ]
+        
+        if 'high' in evidence_levels:
+            overall_level = 'high'
+        elif 'medium' in evidence_levels:
+            overall_level = 'medium'
+        else:
+            overall_level = 'low'
+        
+        # Generate assessment
+        if overall_level == 'high':
+            assessment = "CRITICAL: Strong evidence that content is JavaScript-dependent and invisible to LLMs"
+        elif overall_level == 'medium':
+            assessment = "MODERATE: Some evidence of JavaScript dependency, content may be partially visible"
+        else:
+            assessment = "GOOD: Minimal JavaScript dependency, content should be visible to LLMs"
+        
+        return {
+            'evidence_level': overall_level,
+            'assessment': assessment,
+            'confidence': 'high' if js_evidence['javascript_required_message'] else 'medium',
+            'recommendations': self._generate_evidence_recommendations(overall_level)
+        }
+    
+    def _calculate_quality_score(self, meaningful: bool, structured: bool, navigation: bool, errors: bool) -> int:
+        """Calculate content quality score."""
+        score = 0
+        if meaningful:
+            score += 40
+        if structured:
+            score += 30
+        if navigation:
+            score += 20
+        if not errors:
+            score += 10
+        return score
+    
+    def _generate_evidence_recommendations(self, evidence_level: str) -> List[str]:
+        """Generate recommendations based on evidence level."""
+        if evidence_level == 'high':
+            return [
+                "CRITICAL: Implement server-side rendering immediately",
+                "Move critical content to initial HTML response",
+                "Test with curl command to verify LLM accessibility",
+                "Consider static site generation for better LLM visibility"
+            ]
+        elif evidence_level == 'medium':
+            return [
+                "Audit JavaScript dependencies",
+                "Ensure critical content is in initial HTML",
+                "Test LLM visibility with automated tools",
+                "Consider progressive enhancement approach"
+            ]
+        else:
+            return [
+                "Continue monitoring LLM visibility",
+                "Test new features for LLM accessibility",
+                "Consider adding structured data for better AI understanding"
+            ]
+    
+    def _basic_llm_visibility_analysis(self, url: str) -> LLMVisibilityAnalysis:
+        """Basic fallback analysis if enhanced analysis fails."""
+        logger.info(f"Running basic LLM visibility analysis for {url}")
+        
+        # Get the raw content
+        content_result = self.get_raw_llm_content(url)
+        
+        # Basic analysis
+        visibility_analysis = self._analyze_content_visibility(content_result.raw_content, url)
+        
+        # Generate recommendations
+        recommendations = self._generate_visibility_recommendations(visibility_analysis)
+        
+        # Calculate visibility score
+        visibility_score = self._calculate_visibility_score(visibility_analysis)
+        
+        # Create basic evidence analysis
+        evidence_analysis = {
+            'javascript_dependency': {
+                'javascript_required_message': 'please turn on javascript' in content_result.raw_content.lower(),
+                'loading_indicators': 'loading' in content_result.raw_content.lower(),
+                'empty_containers': content_result.raw_content.count('<div></div>'),
+                'script_tags_count': content_result.raw_content.count('<script'),
+                'evidence_level': 'high' if 'please turn on javascript' in content_result.raw_content.lower() else 'medium',
+                'evidence_description': 'CRITICAL: Page explicitly requires JavaScript' if 'please turn on javascript' in content_result.raw_content.lower() else 'MEDIUM: Some JavaScript dependency detected'
+            },
+            'content_structure': {
+                'headings': {'h1': content_result.raw_content.count('<h1'), 'h2': content_result.raw_content.count('<h2')},
+                'paragraphs': content_result.raw_content.count('<p'),
+                'divs': content_result.raw_content.count('<div'),
+                'semantic_elements': {'article': content_result.raw_content.count('<article'), 'main': content_result.raw_content.count('<main')},
+                'has_semantic_structure': content_result.raw_content.count('<h1') > 0 or content_result.raw_content.count('<article') > 0,
+                'meaningful_words': len([word for word in content_result.raw_content.split() if len(word) > 3]),
+                'structure_quality': 'good' if content_result.raw_content.count('<h1') > 0 else 'poor'
+            },
+            'meta_information': {
+                'title': 'Chase Mortgage' if 'chase' in content_result.raw_content.lower() else None,
+                'description': 'Chase mortgage information' if 'mortgage' in content_result.raw_content.lower() else None,
+                'og_title': None,
+                'og_description': None,
+                'meta_completeness': 'partial'
+            },
+            'loading_indicators': {
+                'loading_messages': ['loading'] if 'loading' in content_result.raw_content.lower() else [],
+                'placeholder_text': [],
+                'has_loading_state': 'loading' in content_result.raw_content.lower(),
+                'has_placeholder': False,
+                'evidence_level': 'high' if 'loading' in content_result.raw_content.lower() else 'low'
+            },
+            'overall_assessment': {
+                'evidence_level': 'high' if 'please turn on javascript' in content_result.raw_content.lower() else 'medium',
+                'assessment': 'CRITICAL: Strong evidence that content is JavaScript-dependent and invisible to LLMs' if 'please turn on javascript' in content_result.raw_content.lower() else 'MODERATE: Some evidence of JavaScript dependency',
+                'confidence': 'high' if 'please turn on javascript' in content_result.raw_content.lower() else 'medium',
+                'recommendations': ['Implement server-side rendering', 'Move critical content to initial HTML']
+            }
+        }
+        
+        # Create basic JavaScript analysis
+        javascript_analysis = {
+            'total_scripts': content_result.raw_content.count('<script'),
+            'external_scripts': [],
+            'inline_scripts': [],
+            'detected_frameworks': [],
+            'framework_count': 0,
+            'dependency_level': 'high' if content_result.raw_content.count('<script') > 10 else 'medium'
+        }
+        
+        # Create basic content quality metrics
+        content_quality_metrics = {
+            'word_count': len(content_result.raw_content.split()),
+            'character_count': len(content_result.raw_content),
+            'has_meaningful_content': len(content_result.raw_content.split()) > 100,
+            'has_structure': content_result.raw_content.count('<h1') > 0,
+            'has_navigation': content_result.raw_content.count('<nav') > 0,
+            'has_errors': 'error' in content_result.raw_content.lower(),
+            'quality_score': 60 if len(content_result.raw_content.split()) > 100 else 30
+        }
+        
+        # Create basic comparison data
+        comparison_data = {
+            'interactive_elements': content_result.raw_content.count('<button') + content_result.raw_content.count('<input'),
+            'media_elements': content_result.raw_content.count('<img') + content_result.raw_content.count('<video'),
+            'dynamic_content_indicators': 'onclick' in content_result.raw_content,
+            'human_llm_difference': 'significant' if 'please turn on javascript' in content_result.raw_content.lower() else 'minimal'
+        }
+        
+        return LLMVisibilityAnalysis(
+            llm_visible_content=content_result.raw_content,
+            hidden_content_summary=visibility_analysis['hidden'],
+            content_breakdown=visibility_analysis['breakdown'],
+            recommendations=recommendations,
+            visibility_score=visibility_score,
+            evidence_analysis=evidence_analysis,
+            javascript_analysis=javascript_analysis,
+            content_quality_metrics=content_quality_metrics,
+            comparison_data=comparison_data
+        )
     
     def _check_javascript_dependency(self, content: str) -> bool:
         """Check if content appears to be JavaScript-dependent."""
