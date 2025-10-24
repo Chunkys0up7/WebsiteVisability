@@ -1309,6 +1309,62 @@ def main():
                 placeholder="https://example.com"
             )
             
+            # Immediate URL Verification - Simplified
+            if url_input and url_input.strip():
+                st.markdown("---")
+                st.markdown("### 🔍 **LLM URL Verification**")
+                
+                with st.spinner("Verifying what URL the LLM actually accesses..."):
+                    try:
+                        from src.analyzers.evidence_framework import EvidenceFramework
+                        framework = EvidenceFramework()
+                        verification_result = framework.verify_llm_url_access(url_input)
+                        st.session_state.url_verification = verification_result
+                        
+                        # Show immediate verification results - SIMPLIFIED
+                        if verification_result.get('final_url'):
+                            final_url = verification_result['final_url']
+                            redirect_count = len(verification_result.get('redirect_chain', []))
+                            
+                            # Simple status display
+                            if redirect_count == 0:
+                                st.success("✅ **Direct Access** - No redirects detected")
+                                st.caption("LLMs access the same URL as browsers (optimal)")
+                            elif redirect_count == 1:
+                                st.warning("🔄 **1 Redirect** detected")
+                                st.caption(f"Final URL: {final_url}")
+                            else:
+                                st.error(f"⚠️ **{redirect_count} Redirects** detected")
+                                st.caption(f"Final URL: {final_url}")
+                            
+                            # Check for user-agent redirect
+                            if verification_result.get('user_agent_redirect_detected'):
+                                st.error("🚨 **User-Agent Redirect** - GPTBot gets different URL")
+                            else:
+                                st.success("✅ **No User-Agent Redirect** - GPTBot gets same URL")
+                            
+                            # Show content accessibility
+                            content_size = verification_result.get('content_size', 0)
+                            word_count = verification_result.get('word_count', 0)
+                            content_accessible = verification_result.get('content_accessible', False)
+                            
+                            if content_size > 0:
+                                st.info(f"📄 Content: {content_size:,} bytes, {word_count:,} words")
+                                if content_accessible:
+                                    st.success("✅ Content accessible to LLMs")
+                                else:
+                                    st.warning("⚠️ Content may have limited accessibility")
+                            
+                            # Link to detailed evidence tab
+                            st.info("📊 **Detailed evidence available in 'URL Verification' tab**")
+                                
+                    except Exception as e:
+                        st.error("❌ Verification failed")
+                        st.caption(f"Error: {str(e)}")
+                        st.session_state.url_verification = None
+            else:
+                st.info("Enter URL to verify LLM access")
+            
             # Comparison toggle
             prev_comparison_enabled = st.session_state.get('comparison_enabled', False)
             prev_comparison_url = st.session_state.get('comparison_url', '')
@@ -1757,6 +1813,7 @@ def main():
         
         # Report Tabs
         report_tabs = st.tabs([
+            "🔍 URL Verification",
             "📊 Evidence Report",
             "🔬 Evidence Framework",
             "📥 Export Report"
@@ -2415,9 +2472,9 @@ def main():
             
             st.markdown("""
             <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <h4 style="color: #495057; margin-bottom: 15px;">🔍 See Exactly What LLMs See</h4>
-                <p style="color: #6c757d; margin-bottom: 10px;">This section shows the raw content that Large Language Models receive when they fetch your website.</p>
-                <p style="color: #6c757d; margin-bottom: 0;">No formatting, no summaries - exactly as LLMs see it.</p>
+                <h4 style="color: #495057; margin-bottom: 15px;">🔍 Evidence-Based LLM Visibility</h4>
+                <p style="color: #6c757d; margin-bottom: 10px;">This section shows exactly what Large Language Models can see when they access your website.</p>
+                <p style="color: #6c757d; margin-bottom: 0;">Focus on evidence and content visibility, not scoring.</p>
             </div>
             """, unsafe_allow_html=True)
             
@@ -2438,24 +2495,11 @@ def main():
                                 visibility_analysis = viewer._basic_llm_visibility_analysis(st.session_state.url)
                             
                             # Display visibility score
-                            score = visibility_analysis.visibility_score
-                            if score >= 80:
-                                score_color = "#28a745"
-                                grade = "Excellent"
-                            elif score >= 60:
-                                score_color = "#17a2b8"
-                                grade = "Good"
-                            elif score >= 40:
-                                score_color = "#ffc107"
-                                grade = "Fair"
-                            else:
-                                score_color = "#dc3545"
-                                grade = "Poor"
-                            
-                            st.markdown(f"""
-                            <div style="text-align: center; background-color: {score_color}20; border: 2px solid {score_color}; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                                <h3 style="color: {score_color}; margin-bottom: 10px;">LLM Visibility Score: {score:.1f}/100</h3>
-                                <p style="color: {score_color}; font-size: 1.2rem; margin: 0;">Grade: {grade}</p>
+                            # Focus on evidence, not scoring
+                            st.markdown("""
+                            <div style="text-align: center; background-color: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                                <h3 style="color: #1976d2; margin-bottom: 10px;">🔍 LLM Content Visibility Analysis</h3>
+                                <p style="color: #1976d2; font-size: 1.1rem; margin: 0;">Evidence-based analysis of what LLMs can see</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
@@ -3137,22 +3181,22 @@ def main():
         with tabs[6]:  # Enhanced LLM Analysis
             st.markdown('<h2 class="section-header">🔬 Enhanced LLM Analysis</h2>', unsafe_allow_html=True)
             
+            st.markdown("""
+            <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h4 style="color: #495057; margin-bottom: 15px;">🔍 Evidence-Based LLM Analysis</h4>
+                <p style="color: #6c757d; margin-bottom: 10px;">This section provides detailed evidence of how different LLM crawlers interact with your website.</p>
+                <p style="color: #6c757d; margin-bottom: 0;">Focus on evidence and capabilities, not scoring.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
             if st.session_state.enhanced_llm_report:
                 report = st.session_state.enhanced_llm_report
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    if st.session_state.score:
-                        unified_score = st.session_state.score.llm_accessibility.total_score
-                        unified_grade = st.session_state.score.llm_accessibility.grade
-                        st.metric("LLM Accessibility Score", f"{unified_score:.1f}/100", 
-                                 delta=f"Grade: {unified_grade}",
-                                 help="Unified scoring system - same as main analysis")
-                    else:
-                        st.metric("LLM Accessibility Score", "N/A",
-                                 help="Run comprehensive analysis to get unified LLM score")
+                    st.metric("Analysis Methods", f"{len(report.crawler_analysis)}")
                 with col2:
-                    st.metric("Crawler Capabilities", f"{len(report.crawler_analysis)}")
+                    st.metric("Evidence Points", f"{len(report.evidence_points)}")
                 with col3:
                     st.metric("Technical Issues", f"{len(report.technical_explanations)}")
                 
@@ -3404,7 +3448,164 @@ def main():
             else:
                 st.info("Crawler testing not available. Please run a 'Comprehensive Analysis' or 'Web Crawler Testing'.")
         
-        with tabs[10]:  # Evidence Report
+        with tabs[10]:  # URL Verification
+            st.markdown('<h2 class="section-header">🔍 URL Verification</h2>', unsafe_allow_html=True)
+            
+            if hasattr(st.session_state, 'url_verification') and st.session_state.url_verification:
+                verification_result = st.session_state.url_verification
+                
+                st.markdown("### 📊 **Verification Results**")
+                
+                # Show verification summary
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    redirect_count = len(verification_result.get('redirect_chain', []))
+                    if redirect_count == 0:
+                        st.success("✅ **Direct Access**")
+                        st.caption("No redirects detected")
+                    elif redirect_count == 1:
+                        st.warning("🔄 **1 Redirect**")
+                        st.caption("Single redirect detected")
+                    else:
+                        st.error(f"⚠️ **{redirect_count} Redirects**")
+                        st.caption("Multiple redirects detected")
+                
+                with col2:
+                    final_url = verification_result.get('final_url', 'N/A')
+                    st.info("**Final URL**")
+                    st.caption(final_url[:60] + "..." if len(final_url) > 60 else final_url)
+                
+                with col3:
+                    if verification_result.get('user_agent_redirect_detected'):
+                        st.error("🚨 **User-Agent Redirect**")
+                        st.caption("GPTBot gets different URL")
+                    else:
+                        st.success("✅ **No User-Agent Redirect**")
+                        st.caption("GPTBot gets same URL")
+                
+                # Show detailed analysis
+                st.markdown("### 🔍 **Detailed Analysis**")
+                
+                # Evidence summary
+                evidence_summary = verification_result.get('evidence_summary', '')
+                if evidence_summary:
+                    st.info(f"**Summary:** {evidence_summary}")
+                
+                # Redirect pattern
+                redirect_pattern = verification_result.get('redirect_pattern', 'unknown')
+                pattern_labels = {
+                    'direct_serve': '✅ Direct Serve (No Redirects)',
+                    'single_redirect': '🔄 Single Redirect',
+                    'user_agent_redirect': '🚨 User-Agent Redirect',
+                    'redirect_chain': '⚠️ Multiple Redirects',
+                    'unknown': '❓ Unknown Pattern'
+                }
+                st.markdown(f"**Redirect Pattern:** {pattern_labels.get(redirect_pattern, redirect_pattern)}")
+                
+                # Redirect chain
+                if verification_result.get('redirect_chain'):
+                    st.markdown("**Redirect Chain:**")
+                    for i, redirect_url in enumerate(verification_result['redirect_chain'], 1):
+                        st.write(f"{i}. {redirect_url}")
+                
+                # Content analysis
+                content_size = verification_result.get('content_size', 0)
+                word_count = verification_result.get('word_count', 0)
+                content_accessible = verification_result.get('content_accessible', False)
+                
+                st.markdown("### 📄 **Content Analysis**")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Content Size", f"{content_size:,} bytes")
+                with col2:
+                    st.metric("Word Count", f"{word_count:,} words")
+                with col3:
+                    status_icon = "✅" if content_accessible else "❌"
+                    st.metric("Content Accessible", f"{status_icon} {content_accessible}")
+                
+                # HTTP status
+                http_status = verification_result.get('http_status')
+                if http_status:
+                    st.markdown(f"**HTTP Status:** {http_status}")
+                
+                # Verification methods
+                methods = verification_result.get('verification_methods', [])
+                if methods:
+                    st.markdown("**Verification Methods:**")
+                    for method in methods:
+                        st.write(f"• {method.replace('_', ' ').title()}")
+                
+                # Technical details
+                st.markdown("### 🔧 **Technical Details**")
+                
+                # Curl command
+                curl_command = verification_result.get('curl_command_used', 'N/A')
+                st.markdown("**Verification Command:**")
+                st.code(curl_command)
+                
+                # Raw content preview
+                raw_content = verification_result.get('raw_content_preview', '')
+                if raw_content:
+                    st.markdown("**Raw Content Preview (First 1000 characters):**")
+                    st.code(raw_content[:500] + "..." if len(raw_content) > 500 else raw_content)
+                
+                # Curl stderr
+                curl_stderr = verification_result.get('curl_stderr_preview', '')
+                if curl_stderr:
+                    st.markdown("**Curl Verbose Output (First 500 characters):**")
+                    st.code(curl_stderr[:300] + "..." if len(curl_stderr) > 300 else curl_stderr)
+                
+                # Recommendations
+                st.markdown("### 💡 **Recommendations**")
+                
+                if redirect_pattern == 'direct_serve':
+                    st.success("✅ **Optimal Configuration**")
+                    st.markdown("Your website is configured optimally for LLM access:")
+                    st.markdown("• No redirects - fastest access")
+                    st.markdown("• Same URL for all visitors")
+                    st.markdown("• No complexity or overhead")
+                    st.markdown("• Continue monitoring to maintain this configuration")
+                
+                elif redirect_pattern == 'user_agent_redirect':
+                    st.error("🚨 **Action Required**")
+                    st.markdown("User-agent redirects detected. Consider:")
+                    st.markdown("• Verify the redirected content contains your full website")
+                    st.markdown("• Ensure static HTML versions are up-to-date")
+                    st.markdown("• Test with multiple AI crawlers (GPTBot, ClaudeBot, PerplexityBot)")
+                    st.markdown("• Monitor redirect performance regularly")
+                
+                elif redirect_pattern == 'redirect_chain':
+                    st.warning("⚠️ **Optimization Recommended**")
+                    st.markdown("Multiple redirects detected. Consider:")
+                    st.markdown("• Reducing to a single redirect if possible")
+                    st.markdown("• Using 301 permanent redirects instead of 302 temporary")
+                    st.markdown("• Monitoring redirect performance")
+                    st.markdown("• Testing with different AI crawlers")
+                
+                else:
+                    st.info("ℹ️ **Monitor Configuration**")
+                    st.markdown("Continue monitoring your redirect configuration:")
+                    st.markdown("• Test regularly with AI crawlers")
+                    st.markdown("• Verify content accessibility")
+                    st.markdown("• Check for changes in redirect behavior")
+                
+            else:
+                st.info("No URL verification data available. Please enter a URL in the sidebar to verify LLM access.")
+                
+                st.markdown("### 🔍 **What is URL Verification?**")
+                st.markdown("URL verification checks what URL LLM crawlers actually access when they visit your website. This is important because:")
+                st.markdown("• **User-agent redirects** may send LLMs to different URLs than browsers")
+                st.markdown("• **Multiple redirects** can cause LLM crawlers to give up")
+                st.markdown("• **Redirect chains** add latency and complexity")
+                st.markdown("• **Content verification** ensures LLMs can access your content")
+                
+                st.markdown("### 🚀 **How to Use**")
+                st.markdown("1. Enter your website URL in the sidebar")
+                st.markdown("2. The system will automatically verify LLM access")
+                st.markdown("3. Check the results in this tab for detailed analysis")
+                st.markdown("4. Use the recommendations to optimize your configuration")
+        
+        with tabs[11]:  # Evidence Report
             st.markdown('<h2 class="section-header">📊 Evidence Report</h2>', unsafe_allow_html=True)
             
             if st.session_state.evidence_report:
@@ -3639,7 +3840,7 @@ def main():
             else:
                 st.info("JavaScript analysis not available. Please run a 'Comprehensive Analysis' or 'LLM Accessibility Only'.")
         
-        with tabs[11]:  # Evidence Framework
+        with tabs[12]:  # Evidence Framework
             st.markdown('<h2 class="section-header">🔬 Evidence-First Framework</h2>', unsafe_allow_html=True)
             
             st.markdown("""
@@ -4020,7 +4221,7 @@ def main():
             else:
                 st.info("🔬 **Analyze a website first** to use the Evidence Framework.")
         
-        with tabs[15]:  # Export Report
+        with tabs[13]:  # Export Report
             st.markdown('<h2 class="section-header">📥 Export Analysis Report</h2>', unsafe_allow_html=True)
             
             if st.session_state.analysis_complete:

@@ -1063,9 +1063,10 @@ class EvidenceFramework:
         """
         Verify what URL the LLM actually accesses and what content it receives.
         This addresses user-agent redirects and ensures we're testing the right URL.
+        Enhanced with comprehensive testing methods.
         """
         logger.info(f"Verifying LLM URL access for: {url}")
-        
+
         verification_results = {
             'original_url': url,
             'final_url': None,
@@ -1074,7 +1075,10 @@ class EvidenceFramework:
             'content_size': 0,
             'content_accessible': False,
             'user_agent_redirect_detected': False,
-            'verification_methods': []
+            'verification_methods': [],
+            'redirect_pattern': 'unknown',
+            'curl_command': f'curl -A "GPTBot/1.0" -L -v {url}',
+            'evidence_summary': ''
         }
         
         # Method 1: curl with GPTBot user agent to trace redirects
@@ -1095,22 +1099,69 @@ class EvidenceFramework:
             verification_results.update(comparison_result)
             verification_results['verification_methods'].append('access_comparison')
         
+        # Determine redirect pattern
+        verification_results['redirect_pattern'] = self._determine_redirect_pattern(verification_results)
+        
+        # Generate evidence summary
+        verification_results['evidence_summary'] = self._generate_evidence_summary(verification_results)
+        
         return verification_results
+    
+    def _determine_redirect_pattern(self, results: Dict[str, Any]) -> str:
+        """Determine the redirect pattern based on verification results."""
+        redirect_count = len(results.get('redirect_chain', []))
+        user_agent_redirect = results.get('user_agent_redirect_detected', False)
+        
+        if redirect_count == 0:
+            return 'direct_serve'
+        elif redirect_count == 1 and not user_agent_redirect:
+            return 'single_redirect'
+        elif redirect_count == 1 and user_agent_redirect:
+            return 'user_agent_redirect'
+        elif redirect_count > 1:
+            return 'redirect_chain'
+        else:
+            return 'unknown'
+    
+    def _generate_evidence_summary(self, results: Dict[str, Any]) -> str:
+        """Generate a clear evidence summary for the user."""
+        pattern = results.get('redirect_pattern', 'unknown')
+        final_url = results.get('final_url', '')
+        redirect_count = len(results.get('redirect_chain', []))
+        
+        if pattern == 'direct_serve':
+            return f"✅ LLM accesses the same URL directly (no redirects). Final URL: {final_url}"
+        elif pattern == 'single_redirect':
+            return f"🔄 LLM follows 1 redirect to: {final_url}"
+        elif pattern == 'user_agent_redirect':
+            return f"🚨 LLM gets redirected to different URL due to user-agent: {final_url}"
+        elif pattern == 'redirect_chain':
+            return f"⚠️ LLM follows {redirect_count} redirects to: {final_url}"
+        else:
+            return f"❓ Redirect pattern unclear. Final URL: {final_url}"
     
     def _verify_with_curl_gptbot(self, url: str) -> Optional[Dict[str, Any]]:
         """Verify URL access using curl with GPTBot user agent"""
         try:
-            # Trace redirects with verbose output
-            cmd = [
-                'curl',
-                '-A', 'Mozilla/5.0 (compatible; GPTBot/1.0; +https://openai.com/gptbot)',
-                '-L',  # Follow redirects
-                '-v',  # Verbose to see redirect chain
-                '-s',  # Silent except for verbose
-                url
-            ]
+            import requests
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            # First try curl command
+            try:
+                # Trace redirects with verbose output
+                cmd = [
+                    'curl',
+                    '-A', 'Mozilla/5.0 (compatible; GPTBot/1.0; +https://openai.com/gptbot)',
+                    '-L',  # Follow redirects
+                    '-v',  # Verbose to see redirect chain
+                    '-s',  # Silent except for verbose
+                    url
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+                # Fallback to requests if curl not available
+                logger.info("curl not available, using requests fallback")
+                return self._verify_with_requests_fallback(url)
             
             if result.returncode != 0:
                 logger.error(f"curl command failed: {result.stderr}")
@@ -1152,11 +1203,71 @@ class EvidenceFramework:
                 'word_count': word_count,
                 'content_accessible': word_count > 100,
                 'user_agent_redirect_detected': user_agent_redirect_detected,
-                'raw_content_preview': result.stdout[:1000] if result.stdout else ""
+                'raw_content_preview': result.stdout[:1000] if result.stdout else "",
+                'curl_stderr_preview': result.stderr[:500] if result.stderr else "",
+                'curl_command_used': ' '.join(cmd),
+                'redirect_count': len(redirect_chain)
             }
             
         except Exception as e:
             logger.error(f"curl GPTBot verification failed: {e}")
+            return None
+    
+    def _verify_with_requests_fallback(self, url: str) -> Optional[Dict[str, Any]]:
+        """Fallback verification using requests library when curl is not available"""
+        try:
+            import requests
+            from bs4 import BeautifulSoup
+            
+            # Set GPTBot user agent
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (compatible; GPTBot/1.0; +https://openai.com/gptbot)',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+            }
+            
+            # Make request with redirect following
+            response = requests.get(url, headers=headers, allow_redirects=True, timeout=30)
+            
+            # Get redirect history
+            redirect_chain = []
+            if response.history:
+                for resp in response.history:
+                    if resp.status_code in [301, 302, 303, 307, 308]:
+                        redirect_chain.append(resp.headers.get('Location', ''))
+            
+            # Analyze content
+            content_size = len(response.text)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            text_content = soup.get_text()
+            word_count = len(text_content.split())
+            
+            # Check for user-agent redirect indicators
+            user_agent_redirect_detected = any([
+                'user-agent' in response.text.lower(),
+                'redirect' in response.text.lower(),
+                'static' in response.url.lower(),
+                len(redirect_chain) > 0
+            ])
+            
+            return {
+                'final_url': response.url,
+                'redirect_chain': redirect_chain,
+                'http_status': response.status_code,
+                'content_size': content_size,
+                'word_count': word_count,
+                'content_accessible': word_count > 100,
+                'user_agent_redirect_detected': user_agent_redirect_detected,
+                'raw_content_preview': response.text[:1000] if response.text else "",
+                'curl_stderr_preview': f"Requests fallback used - Status: {response.status_code}",
+                'curl_command_used': f'requests.get("{url}", headers={{GPTBot user agent}})',
+                'redirect_count': len(redirect_chain),
+                'verification_method': 'requests_fallback'
+            }
+            
+        except Exception as e:
+            logger.error(f"requests fallback verification failed: {e}")
             return None
     
     def _check_user_agent_redirects(self, url: str) -> Optional[Dict[str, Any]]:
