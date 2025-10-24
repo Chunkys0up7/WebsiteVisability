@@ -1084,8 +1084,12 @@ def perform_analysis(
                         st.session_state.dynamic_result = dynamic_result
                         logger.info(f"Dynamic analysis completed for {url}")
                 except Exception as e:
-                    st.warning(f"Dynamic analysis error: {str(e)}")
                     logger.error(f"Dynamic analysis error for {url}: {e}")
+                    # Provide more helpful error message for common Playwright issues
+                    if "NotImplementedError" in str(e):
+                        st.warning("⚠️ **Dynamic analysis failed**: Playwright browser initialization issue (common on Windows). Static analysis results are still available.")
+                    else:
+                        st.warning(f"Dynamic analysis failed: {str(e)}")
                     dynamic_result = None
             
             # Content Comparison
@@ -1787,7 +1791,7 @@ def main():
                 3. **Technical (30%)**: JavaScript, meta tags, and structured data
                 """)
             
-                # Add calculation methodology display
+                # Add calculation methodology display (moved outside to avoid nesting)
                 with st.expander("🧮 Detailed Calculation Methodology", expanded=True):
                     st.markdown("""
                     ### Formula
